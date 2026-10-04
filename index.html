@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ammazza Gattitopi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Rubik:wght@400;600;800&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="hud" aria-live="off">
+  <div class="stat"><small>Punti</small><b id="hScore">0</b></div>
+  <div class="stat"><small>Record</small><b id="hRecord">0</b></div>
+  <div class="stat"><small>Combo</small><b id="hCombo">x1</b></div>
+  <div class="stat"><small>Arma</small><b id="hWeapon">Pede</b></div>
+  <div class="stat"><small>Scudo</small><b id="hShield">0</b></div>
+  <div class="stat"><small>Ora</small><b id="hClock">23:40</b></div>
+  <button class="icon-btn" id="muteBtn" type="button">Audio: sì</button>
+</div>
+
+<div class="stage" id="stage">
+  <canvas id="cv"></canvas>
+  <div class="rosary" aria-live="off">
+    <svg id="rosary" viewBox="0 0 120 150" role="img" aria-label="Rosario: 10 palline">
+      <defs>
+        <radialGradient id="coral" cx="35%" cy="30%" r="75%">
+          <stop offset="0" stop-color="#ffc2b2"/><stop offset=".35" stop-color="#e0503e"/><stop offset=".8" stop-color="#9a1f16"/><stop offset="1" stop-color="#5a0e0a"/>
+        </radialGradient>
+        <radialGradient id="goldm" cx="35%" cy="30%" r="75%">
+          <stop offset="0" stop-color="#fff3c0"/><stop offset=".5" stop-color="#e2b33c"/><stop offset="1" stop-color="#6e5010"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="54" r="42" fill="none" stroke="#a7acb7" stroke-width="1.7" stroke-dasharray="2.4 1.5"/>
+      <path d="M60 104 V128" stroke="#a7acb7" stroke-width="1.7" stroke-dasharray="2.4 1.5"/>
+      <g id="beads"></g>
+      <circle cx="60" cy="110" r="3.4" fill="url(#goldm)"/><circle cx="60" cy="119" r="3.4" fill="url(#goldm)"/>
+      <g class="medal" transform="translate(60 96)">
+        <ellipse rx="7.5" ry="9" fill="url(#goldm)" stroke="#6e5010" stroke-width=".8"/>
+        <rect x="-2.2" y="-4.5" width="4.4" height="8.5" fill="#6e5010"/>
+        <rect x="-3" y="-6.5" width="1.6" height="2.2" fill="#6e5010"/><rect x="-.8" y="-6.5" width="1.6" height="2.2" fill="#6e5010"/><rect x="1.4" y="-6.5" width="1.6" height="2.2" fill="#6e5010"/>
+      </g>
+      <g transform="translate(60 136)">
+        <rect x="-1.7" y="-8" width="3.4" height="21" rx="1" fill="url(#goldm)" stroke="#6e5010" stroke-width=".5"/>
+        <rect x="-7.5" y="-3" width="15" height="3.4" rx="1" fill="url(#goldm)" stroke="#6e5010" stroke-width=".5"/>
+        <path d="M0 -2.4 V6 M-3.5 -1.3 L0 0.6 L3.5 -1.3" stroke="#6e5010" stroke-width=".9" fill="none"/>
+      </g>
+    </svg>
+    <small id="hLives">10 vite</small>
+  </div>
+
+  <div class="overlay" id="ovStart">
+    <div class="card">
+      <p class="eyebrow">Paternò · ore 23:40</p>
+      <h1>Ammazza Gattitopi</h1>
+      <p class="lede">Sotto il Castello Normanno i tombini si aprono e salgono bestie grosse come gatti. Santa Barbara guarda dalla colonna. Tu hai un pede cu du' iita rutti e il suo rosario: dieci palline, una per ogni vita. Ogni gattitopo che scappa ti costa una pallina. Resisti fino all'alba.</p>
+      <ul class="legend">
+        <li><canvas id="icRat" width="88" height="88"></canvas><span><strong>Gattitopo.</strong> Una pidata. Se scappa, perdi una pallina.</span></li>
+        <li><canvas id="icBoss" width="88" height="88"></canvas><span><strong>'U Zù Gattitopu.</strong> Con la coppola. Tre colpi. Se scappa, due palline.</span></li>
+        <li><canvas id="icBaby" width="88" height="88"></canvas><span><strong>Gattitopini.</strong> Piccoli e velocissimi.</span></li>
+        <li><canvas id="icGirl" width="88" height="88"></canvas><span><strong>'A picciridda.</strong> Scansala: se la prendi perdi una pallina.</span></li>
+        <li><canvas id="icFrog" width="88" height="88"></canvas><span><strong>Rana della fontana.</strong> Salta di tombino in tombino. Presa al volo vale doppio.</span></li>
+        <li><canvas id="icAra" width="88" height="88"></canvas><span><strong>Arancino.</strong> Rallenta tutto e ridà una pallina del rosario.</span></li>
+        <li><canvas id="icTri" width="88" height="88"></canvas><span><strong>Trinacria.</strong> Tre scudi: ogni scudo para una fuga.</span></li>
+        <li><canvas id="icFuo" width="88" height="88"></canvas><span><strong>Fuochi di Santa Barbara.</strong> Fanno saltare tutti i gattitopi in strada.</span></li>
+      </ul>
+      <div class="rules">
+        <div>
+          <h3>Armi</h3>
+          <p>Si parte a pidate, col pede con le due dita rotte. Da 10 colpi di fila prendi l'<strong>asse di legno</strong>: colpo doppio, e prende anche i tombini vicini. Un colpo a vuoto o una fuga ti riporta al pede.</p>
+        </div>
+        <div>
+          <h3>Eventi ogni ora</h3>
+          <p><strong>Ondata</strong>: escono a raffica. <strong>Blackout</strong>: si spengono i lampioni, vedi solo gli occhi rossi. <strong>Festa di Santa Barbara</strong>: fuochi in cielo e punti doppi. Quando esce <strong>'U Zù</strong>, le signore scappano urlando da un muro all'altro.</p>
+        </div>
+      </div>
+      <div class="account" data-account></div>
+      <button class="big-btn" id="startBtn" type="button">Scàusati e parti</button>
+      <p class="fine">Clicca o tocca per colpire. Voci e ispirazione dal servizio <a href="https://www.youtube.com/watch?v=8BVv4spYvRM" target="_blank" rel="noopener">«Eroe ammazza gattitopi di Paternò»</a> (Mpare Catania).</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovEnd" hidden>
+    <div class="card">
+      <p class="eyebrow" id="endEyebrow">Fine della notte</p>
+      <h2 id="endTitle">I gattitopi hanno vinto</h2>
+      <p class="lede" id="endText"></p>
+      <div class="result">
+        <div><small>Punti</small><b id="endScore">0</b></div>
+        <div><small>Record</small><b id="endRecord">0</b></div>
+        <div><small>Combo massima</small><b id="endCombo">0</b></div>
+        <div><small>Titolo</small><b id="endRank" style="font-size:18px;line-height:1.6">Picciriddu</b></div>
+      </div>
+      <div class="board-wrap" id="boardWrap" hidden>
+        <h3>Classifica di Paternò</h3>
+        <p class="fine" id="saveStatus" role="status"></p>
+        <ol class="board" id="board"></ol>
+        <div class="account" data-account></div>
+      </div>
+      <button class="big-btn" id="againBtn" type="button">Un'altra notte</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovAuth" hidden>
+    <form class="card auth" id="authForm">
+      <h2 id="authTitle">Accedi</h2>
+      <div class="field" id="authUserRow" hidden>
+        <label for="authUser">Nome in classifica</label>
+        <input id="authUser" name="username" type="text" minlength="3" maxlength="20" autocomplete="nickname" placeholder="es. Turi 'u Pidatuni">
+      </div>
+      <div class="field">
+        <label for="authEmail">Email</label>
+        <input id="authEmail" name="email" type="email" required autocomplete="email">
+      </div>
+      <div class="field">
+        <label for="authPass">Password</label>
+        <input id="authPass" name="password" type="password" required minlength="6" autocomplete="current-password">
+      </div>
+      <p class="fine" id="authMsg" role="status"></p>
+      <div class="auth-actions">
+        <button class="big-btn" id="authSubmit" type="submit">Entra</button>
+        <button class="link-btn" id="authSwitch" type="button">Non hai un account? Registrati</button>
+      </div>
+      <button class="link-btn" id="authClose" type="button">Torna al gioco</button>
+    </form>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/online.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>
