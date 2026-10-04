@@ -1627,6 +1627,7 @@
     // da loggato il seed lo sceglie il server, che poi rigioca la partita con quel seed
     const online = window.Online ? await window.Online.newGame() : null;
     $('startBtn').disabled = $('againBtn').disabled = false;
+    const unranked = !online && window.Online && window.Online.loggedIn();
     S = Sim.create(online ? online.seed : Math.floor(Math.random() * 2 ** 31));
     game.gameId = online ? online.id : null;
     game.inputs = []; game.acc = 0; game.shake = 0;
@@ -1634,7 +1635,9 @@
     pointer.lx = W / 2; pointer.ly = H * 0.7;
     buildRosary();
     game.state = 'play';
-    $('ovStart').hidden = true; $('ovEnd').hidden = true;
+    $('ovStart').hidden = true; $('ovEnd').hidden = true; $('ovBoard').hidden = true; game.boardOpen = false;
+    // il server accetta una partita nuova ogni 10 secondi: se ricominci troppo in fretta questa non va in classifica
+    if (unranked) addText(W / 2, hz * 0.55, 'Partita fuori classifica: ricomincia tra qualche secondo', '#e8642c', 16, 3);
   }
 
   function updateHud() {
@@ -1705,9 +1708,19 @@
   // la classifica mette in pausa la partita finché resta aperta
   if (window.Online && window.Online.available) {
     $('boardBtn').hidden = false;
-    $('boardBtn').addEventListener('click', () => { game.boardOpen = true; window.Online.showBoard(); $('boardClose').focus(); });
-    $('boardClose').addEventListener('click', () => { $('ovBoard').hidden = true; game.boardOpen = false; });
+    const openBoard = () => { game.boardOpen = true; window.Online.showBoard(); $('boardClose').focus(); };
+    const closeBoard = () => { $('ovBoard').hidden = true; game.boardOpen = false; };
+    $('boardBtn').addEventListener('click', openBoard);
+    $('boardClose').addEventListener('click', closeBoard);
+    // Esc apre e chiude la classifica (non mentre si scrive nel login)
+    document.addEventListener('keydown', ev => {
+      if (ev.key !== 'Escape' || !$('ovAuth').hidden) return;
+      ev.preventDefault();
+      game.boardOpen ? closeBoard() : openBoard();
+    });
   }
+  // ricomincia da capo in qualsiasi momento; la partita in corso viene abbandonata
+  $('restartBtn').addEventListener('click', () => { $('restartBtn').blur(); start(); });
 
   $('muteBtn').addEventListener('click', () => {
     muted = !muted; $('muteBtn').textContent = muted ? 'Audio: no' : 'Audio: sì';

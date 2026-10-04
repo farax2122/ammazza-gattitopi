@@ -168,7 +168,7 @@
     renderBoard(null, 'boardFull', 20);
   }
 
-  window.Online = { finish, newGame, showBoard, available: !!sb };
+  window.Online = { finish, newGame, showBoard, available: !!sb, loggedIn: () => !!me };
 
   if (!sb) { renderAccount(); return; }
   $('authForm').addEventListener('submit', onSubmit);
