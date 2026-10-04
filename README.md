@@ -48,6 +48,8 @@ Il limite che resta è un programma che gioca al posto tuo con riflessi umani: q
 
 Senza configurazione il gioco funziona lo stesso, da ospite e senza classifica.
 
+La conferma via email è disattivata (Authentication > Sign In / Providers > Email > *Confirm email*): il servizio email gratuito di Supabase manda poche email l'ora e bloccherebbe le registrazioni. Per riattivarla serve un SMTP proprio (Authentication > Emails > SMTP Settings).
+
 ## Sviluppo in locale
 
 Solo per lavorare sul codice: `python -m http.server 8000` dalla cartella e apri http://localhost:8000.
