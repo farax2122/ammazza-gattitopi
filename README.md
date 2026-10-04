@@ -54,6 +54,12 @@ La conferma via email è disattivata (Authentication > Sign In / Providers > Ema
 
 Solo per lavorare sul codice: `python -m http.server 8000` dalla cartella e apri http://localhost:8000.
 
+GitHub Pages fa tenere i file in cache 10 minuti. Per far arrivare subito una nuova versione, `index.html` carica CSS e JS con `?v=<commit>`: prima di ogni rilascio aggiornalo con
+
+```
+sed -i -E 's#((css|js)/[a-z]+\.(css|js)|_shared/sim\.js)(\?v=[^"]*)?"#?v='$(git rev-parse --short HEAD)'"#g' index.html
+```
+
 ## Audio
 
 Le clip in `assets/audio/` vengono dal video originale: la voce è di una persona reale e i diritti sono dell'autore del servizio, a cui va chiesto il permesso per l'uso pubblico.

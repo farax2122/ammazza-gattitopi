@@ -8,7 +8,8 @@ import pathlib
 import re
 
 root = pathlib.Path(__file__).resolve().parent.parent
-html = (root / 'index.html').read_text(encoding='utf-8')
+# i ?v=... servono solo contro la cache del sito: qui i file vengono incorporati
+html = re.sub(r'\?v=[0-9a-f]+"', '"', (root / 'index.html').read_text(encoding='utf-8'))
 css = (root / 'css' / 'style.css').read_text(encoding='utf-8')
 js = (root / 'js' / 'game.js').read_text(encoding='utf-8')
 
