@@ -57,7 +57,7 @@ Solo per lavorare sul codice: `python -m http.server 8000` dalla cartella e apri
 GitHub Pages fa tenere i file in cache 10 minuti. Per far arrivare subito una nuova versione, `index.html` carica CSS e JS con `?v=<commit>`: prima di ogni rilascio aggiornalo con
 
 ```
-sed -i -E 's#((css|js)/[a-z]+\.(css|js)|_shared/sim\.js)(\?v=[^"]*)?"#?v='$(git rev-parse --short HEAD)'"#g' index.html
+sed -i -E 's#((css|js)/[a-z]+\.(css|js)|_shared/sim\.js)(\?v=[^"]*)?"#\1?v='$(git rev-parse --short HEAD)'"#g' index.html
 ```
 
 ## Audio
