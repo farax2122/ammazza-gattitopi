@@ -1,5 +1,9 @@
--- Ammazza Gattitopi: profili, punteggi e classifica.
--- Da eseguire una volta nel progetto Supabase: Dashboard > SQL Editor > New query > incolla > Run.
+-- Ammazza Gattitopi: profili, partite, punteggi verificati e classifica.
+-- Da eseguire nel progetto Supabase: Dashboard > SQL Editor > New query > incolla > Run.
+--
+-- Anti-trucchi: il browser non può scrivere punteggi. Chiede una partita (start_game, che sceglie il seed),
+-- gioca, poi manda solo i clic alla Edge Function submit-score: il server rigioca la partita con lo stesso
+-- motore (functions/_shared/sim.js) e salva il punteggio che ottiene lui.
 
 -- Profili pubblici: solo il nome visibile in classifica.
 create table if not exists public.profiles (
@@ -9,31 +13,44 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Una riga per partita finita.
+-- Partite avviate: il seed lo sceglie il database, non il browser.
+create table if not exists public.games (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
+  seed integer not null,
+  created_at timestamptz not null default now(),
+  used_at timestamptz
+);
+create index if not exists games_user_idx on public.games (user_id, created_at desc);
+
+-- Punteggi: li scrive solo la Edge Function (service role) dopo aver rigiocato la partita.
 create table if not exists public.scores (
   id bigint generated always as identity primary key,
-  user_id uuid not null default auth.uid() references public.profiles (id) on delete cascade,
-  score integer not null check (score between 0 and 500000),
-  max_combo integer not null default 0 check (max_combo between 0 and 2000),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  game_id uuid not null unique references public.games (id) on delete cascade,
+  score integer not null check (score >= 0),
+  max_combo integer not null default 0,
   win boolean not null default false,
   created_at timestamptz not null default now()
 );
-create index if not exists scores_user_idx on public.scores (user_id, created_at desc);
 
 alter table public.profiles enable row level security;
+alter table public.games enable row level security;
 alter table public.scores enable row level security;
 
--- Tutti leggono i profili (servono i nomi in classifica); ognuno modifica solo il suo.
 drop policy if exists "profili leggibili" on public.profiles;
 create policy "profili leggibili" on public.profiles for select using (true);
 drop policy if exists "profilo proprio" on public.profiles;
 create policy "profilo proprio" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
--- Tutti leggono i punteggi; si inseriscono solo i propri; nessuna modifica o cancellazione dal client.
+-- Partite: ognuno vede solo le sue; nessuna scrittura diretta dal browser (si passa da start_game).
+drop policy if exists "partite proprie" on public.games;
+create policy "partite proprie" on public.games for select using (auth.uid() = user_id);
+
+-- Punteggi: tutti leggono; nessuna policy di insert/update/delete, quindi dal browser non si scrivono.
 drop policy if exists "punteggi leggibili" on public.scores;
 create policy "punteggi leggibili" on public.scores for select using (true);
 drop policy if exists "punteggio proprio" on public.scores;
-create policy "punteggio proprio" on public.scores for insert to authenticated with check (auth.uid() = user_id);
 
 -- Alla registrazione crea il profilo con lo username scelto (passato nei metadata del signUp).
 create or replace function public.handle_new_user()
@@ -48,23 +65,24 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- Anti-spam minimo: una partita salvata ogni 20 secondi per giocatore.
--- ponytail: il punteggio arriva dal browser, quindi chi sa usare la console può barare.
--- Se la classifica diventa importante, validare la partita lato server (Edge Function).
-create or replace function public.scores_rate_limit()
-returns trigger language plpgsql security definer set search_path = public as $$
+-- Avvia una partita: seed casuale scelto qui. Al massimo una partita ogni 10 secondi.
+create or replace function public.start_game()
+returns table (id uuid, seed integer) language plpgsql security definer set search_path = public as $$
 begin
-  if exists (select 1 from public.scores where user_id = new.user_id and created_at > now() - interval '20 seconds') then
-    raise exception 'Troppe partite salvate di fila: riprova tra poco';
+  if auth.uid() is null then raise exception 'Accedi per giocare in classifica'; end if;
+  if exists (select 1 from public.games g where g.user_id = auth.uid() and g.created_at > now() - interval '10 seconds') then
+    raise exception 'Aspetta qualche secondo prima di iniziare un''altra partita';
   end if;
-  return new;
+  return query
+    insert into public.games (user_id, seed)
+    values (auth.uid(), floor(random() * 2147483647)::integer)
+    returning games.id, games.seed;
 end;
 $$;
-drop trigger if exists scores_rate_limit on public.scores;
-create trigger scores_rate_limit before insert on public.scores
-  for each row execute function public.scores_rate_limit();
+revoke all on function public.start_game() from public, anon;
+grant execute on function public.start_game() to authenticated;
 
--- Classifica: miglior punteggio di ogni giocatore.
+-- Classifica: miglior punteggio verificato di ogni giocatore.
 create or replace view public.leaderboard with (security_invoker = true) as
   select p.id as user_id, p.username, max(s.score) as best, max(s.max_combo) as best_combo, count(*) as games
   from public.scores s join public.profiles p on p.id = s.user_id

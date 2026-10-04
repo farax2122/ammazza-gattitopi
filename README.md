@@ -1,56 +1,57 @@
 # Ammazza Gattitopi
 
+**Gioca qui: https://farax2122.github.io/ammazza-gattitopi/**
+
 Gioco da browser ambientato a Paternò di notte: i gattitopi escono dai tombini e tu li prendi a pidate, col pede con due dita rotte, finché non arriva l'alba. Ispirato al servizio «Eroe ammazza gattitopi di Paternò» (Mpare Catania, https://www.youtube.com/watch?v=8BVv4spYvRM).
 
-Niente build e niente dipendenze: HTML, CSS e JavaScript puro su canvas.
-
-## Avvio
-
-Le voci vengono caricate con `fetch`, quindi il gioco va servito da un server locale, non aperto con doppio clic:
-
-```
-python -m http.server 8000
-```
-
-Poi apri http://localhost:8000. Se apri `index.html` direttamente il gioco funziona lo stesso, ma al posto delle voci senti lo squittio.
+Il sito è statico su GitHub Pages: ogni push sul ramo `main` lo aggiorna in un paio di minuti. Account, classifica e verifica dei punteggi stanno su Supabase.
 
 ## Struttura
 
 ```
-index.html          markup: HUD, canvas, schermate di inizio e fine
-css/style.css       stile (palette maiolica, rosario, classifica)
-js/game.js          tutto il gioco: sfondo, sprite, logica, audio
-assets/audio/       frasi campionate dal video, velocizzate 1.25x
-tools/build_single.py  crea dist/ammazza-gattitopi.html, un unico file con tutto incorporato
+index.html                         pagina: HUD, canvas, schermate di inizio/fine, login
+css/style.css                      stile
+js/game.js                         disegno, effetti, suoni, input
+js/online.js                       login, registrazione, classifica
+js/config.js                       URL e chiave pubblica di Supabase
+supabase/functions/_shared/sim.js  motore di gioco deterministico (browser e server)
+supabase/functions/submit-score/   Edge Function che rigioca la partita e salva il punteggio
+supabase/schema.sql                tabelle, regole di sicurezza, classifica
+assets/audio/                      frasi campionate dal video, velocizzate 1.25x
+tools/sim_test.js                  verifica che server e browser diano lo stesso punteggio
+tools/build_single.py              versione in un unico file (senza parte online)
 ```
 
-Per la versione in un solo file (utile per condividerla o pubblicarla dove non si caricano più file): `python tools/build_single.py`.
+## Come funziona l'anti-trucchi
 
-## Regole in breve
+Il browser non può scrivere punteggi. Quando un giocatore registrato inizia, il database sceglie il seed della partita (`start_game`). A fine partita il browser manda solo l'elenco dei clic alla Edge Function `submit-score`, che rigioca la partita con lo stesso motore (`sim.js`) e salva il punteggio che ottiene lei.
 
-- Rosario di Santa Barbara: 10 grani, uno per vita. Gattitopo che scappa = 1 grano, 'U Zù = 2, colpire 'a picciridda = 1. L'arancino ne ridà uno.
-- Armi: pede, poi da 10 colpi di fila l'asse di legno (colpo doppio, prende i tombini vicini, non colpisce la bambina).
-- Power-up: arancino (rallenta), Trinacria (3 scudi), fuochi di Santa Barbara (svuota la strada).
-- Eventi ogni ora: ondata, blackout, festa di Santa Barbara. Parossismi dell'Etna ogni 20-30 secondi.
-- La partita dura dalle 23:40 alle 06:00 (circa 3 minuti).
+Il server rifiuta:
 
-Il record si salva nel `localStorage` del browser. La classifica di fine partita per ora usa giocatori di prova (`FAKE_BOARD` in `js/game.js`).
+- clic su bersagli che in quel momento non esistono o non si possono colpire;
+- clic più ravvicinati di 83 ms;
+- colpi a meno di 150 ms dalla comparsa del bersaglio;
+- partite consegnate due volte;
+- partite che durano meno del tempo realmente passato.
 
-## Account e classifica online (Supabase)
+Il limite che resta è un programma che gioca al posto tuo con riflessi umani: quello nessun gioco da browser lo può escludere del tutto.
 
-Registrazione, login e classifica usano [Supabase](https://supabase.com) (piano gratuito). Senza configurarlo il gioco funziona offline, da ospite.
+`node tools/sim_test.js` rigioca 300 partite e controlla che browser e server diano lo stesso punteggio e che i trucchi vengano rifiutati.
+
+## Configurare Supabase
 
 1. Crea un progetto su supabase.com.
-2. Dashboard > SQL Editor: incolla `supabase/schema.sql` ed eseguilo. Crea profili, punteggi, regole di sicurezza e la vista `leaderboard`.
-3. Dashboard > Authentication > URL Configuration: in *Site URL* metti l'indirizzo del sito (es. `https://farax2122.github.io/ammazza-gattitopi/`), così il link di conferma email riporta al gioco.
-4. Dashboard > Project Settings > API: copia *Project URL* e la chiave *anon public* in `js/config.js`.
+2. SQL Editor: incolla `supabase/schema.sql` ed eseguilo.
+3. Authentication > URL Configuration: *Site URL* = `https://farax2122.github.io/ammazza-gattitopi/`.
+4. Pubblica la funzione: `npx supabase functions deploy submit-score --project-ref <ref> --use-api`.
+5. Metti *Project URL* e chiave *anon public* in `js/config.js`. La chiave anon è pubblica per progetto: i dati li proteggono le regole dello schema.
 
-La chiave anon è fatta per stare nel browser: i dati li proteggono le regole RLS dello schema (ognuno inserisce solo i propri punteggi, nessuno li modifica o cancella). Il punteggio però è calcolato nel browser, quindi chi sa usare la console può barare: se la classifica diventa seria, va aggiunta una verifica lato server.
+Senza configurazione il gioco funziona lo stesso, da ospite e senza classifica.
 
-## Pubblicazione
+## Sviluppo in locale
 
-Il sito è statico: GitHub Pages serve direttamente il ramo `main`. Ogni push aggiorna il sito in un paio di minuti.
+Solo per lavorare sul codice: `python -m http.server 8000` dalla cartella e apri http://localhost:8000.
 
 ## Audio
 
-Le clip in `assets/audio/` vengono dal video originale: la voce è di una persona reale e i diritti sono dell'autore del servizio. Prima di pubblicare il gioco, chiedi il permesso o sostituisci le clip.
+Le clip in `assets/audio/` vengono dal video originale: la voce è di una persona reale e i diritti sono dell'autore del servizio, a cui va chiesto il permesso per l'uso pubblico.

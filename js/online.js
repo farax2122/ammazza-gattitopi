@@ -8,7 +8,6 @@
   const USERNAME_RE = /^[\p{L}\p{N}_ .'-]{3,20}$/u;
 
   let me = null;       // { id, username } quando sei dentro
-  let pending = null;  // partita finita da ospite, salvata appena fai l'accesso
   let mode = 'login';
 
   function el(tag, props = {}, ...kids) {
@@ -29,7 +28,7 @@
         );
       } else {
         box.append(
-          el('span', { textContent: 'Puoi giocare da ospite, ma il punteggio va in classifica solo se accedi.' }),
+          el('span', { textContent: 'Puoi giocare da ospite, ma in classifica entrano solo le partite iniziate dopo aver fatto l\'accesso.' }),
           el('button', { type: 'button', className: 'icon-btn', textContent: 'Accedi o registrati', onclick: openAuth })
         );
       }
@@ -95,13 +94,29 @@
     }
   }
 
-  // ---------- punteggi e classifica ----------
-  async function save(run) {
+  // ---------- partite e punteggi ----------
+  // Il punteggio non lo manda il browser: il server riceve seed e clic, rigioca la partita
+  // con lo stesso motore (supabase/functions/_shared/sim.js) e salva il punteggio che ottiene lui.
+  async function newGame() {
+    if (!sb || !me) return null;
+    const { data, error } = await sb.rpc('start_game');
+    if (error || !data || !data.length) return null;
+    return { id: data[0].id, seed: data[0].seed };
+  }
+
+  async function submit(run) {
     const status = $('saveStatus');
-    status.textContent = 'Salvo il punteggio…';
-    const { error } = await sb.from('scores').insert({ score: run.score, max_combo: run.maxCombo, win: run.win });
-    status.textContent = error ? `Punteggio non salvato: ${friendly(error)}` : 'Punteggio salvato in classifica.';
-    return !error;
+    status.textContent = 'Il server sta verificando la partita…';
+    const { data, error } = await sb.functions.invoke('submit-score', { body: { gameId: run.gameId, inputs: run.inputs } });
+    if (error) {
+      let msg = 'server non raggiungibile';
+      try { msg = (await error.context.json()).error || msg; } catch (e) {}
+      status.textContent = `Punteggio non salvato: ${msg}.`;
+      return;
+    }
+    status.textContent = data.score === run.score
+      ? 'Partita verificata dal server e salvata in classifica.'
+      : `Il server ha ricalcolato ${data.score.toLocaleString('it-IT')} punti e ha salvato quelli.`;
   }
 
   function row(pos, name, pts, cls) {
@@ -135,17 +150,18 @@
   }
 
   // chiamata dal gioco a fine partita
-  async function finish(score, maxCombo, win) {
+  async function finish(run) {
     $('boardWrap').hidden = !sb;
     if (!sb) return;
-    const run = { score, maxCombo, win };
     $('saveStatus').textContent = '';
-    if (me) { await save(run); pending = null; }
-    else { pending = run; $('saveStatus').textContent = 'Sei ospite: accedi per mettere questo punteggio in classifica.'; }
+    if (run.gameId && me) await submit(run);
+    else $('saveStatus').textContent = me
+      ? 'Questa partita non era registrata sul server: la prossima entra in classifica.'
+      : 'Sei ospite: accedi prima di iniziare e la prossima partita entra in classifica.';
     renderBoard(me ? null : run);
   }
 
-  window.Online = { finish };
+  window.Online = { finish, newGame };
 
   if (!sb) { renderAccount(); return; }
   $('authForm').addEventListener('submit', onSubmit);
@@ -158,7 +174,6 @@
       if (session) {
         const { data } = await sb.from('profiles').select('username').eq('id', session.user.id).maybeSingle();
         me = { id: session.user.id, username: (data && data.username) || 'Giocatore' };
-        if (pending && await save(pending)) { pending = null; if (!$('ovEnd').hidden) renderBoard(null); }
       } else {
         me = null;
       }

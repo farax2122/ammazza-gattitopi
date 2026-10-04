@@ -20,6 +20,8 @@ def inline_audio(m):
 
 js = re.sub(r"'(assets/audio/[\w-]+\.mp3)'", inline_audio, js)
 html = html.replace('<link rel="stylesheet" href="css/style.css">', f'<style>\n{css}</style>')
+sim = (root / 'supabase' / 'functions' / '_shared' / 'sim.js').read_text(encoding='utf-8')
+html = html.replace('<script src="supabase/functions/_shared/sim.js"></script>', f'<script>\n{sim}</script>')
 html = html.replace('<script src="js/game.js"></script>', f'<script>\n{js}</script>')
 # la versione single-file è offline: login e classifica online restano solo nel sito vero
 html = re.sub(r'<script src="(https://cdn\.jsdelivr\.net/npm/@supabase[^"]+|js/config\.js|js/online\.js)"></script>\n', '', html)

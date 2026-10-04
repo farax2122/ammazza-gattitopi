@@ -2,8 +2,6 @@
   const $ = id => document.getElementById(id);
   const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
   const DISPLAY = "'Bowlby One SC', Impact, 'Arial Black', sans-serif";
-  const DURATION = 190;           // secondi reali fino all'alba (23:40 -> 06:00, 2 minuti di gioco al secondo)
-  const START_MIN = 23 * 60 + 40;
   const FW_COLORS = ['#f2c230', '#e8642c', '#f4efe2', '#7fb2ff', '#c8312b', '#9be07f'];
 
   let W = 0, H = 0, DPR = 1, bgC = null, holes = [], hz = 0;
@@ -838,12 +836,6 @@
   }
 
   // ---------- Armi (cursore) ----------
-  const WEAPONS = [
-    { name: 'Pede', min: 0, dmg: 1, splash: false },
-    { name: 'Asse di legno', min: 10, dmg: 2, splash: true }
-  ];
-  function weapon() { let w = WEAPONS[0]; for (const x of WEAPONS) if (game.combo >= x.min) w = x; return w; }
-
   function drawWeapon(c, name, x, y, ang, sc) {
     c.save(); c.translate(x, y); c.rotate(ang); c.scale(sc, sc);
     if (name === 'Pede') {
@@ -1117,61 +1109,21 @@
   }
 
   // ---------- Stato di gioco ----------
-  const game = {
-    state: 'menu', score: 0, record: 0, combo: 0, maxCombo: 0, lives: 10, elapsed: 0, hitstop: 0,
-    spawnT: 0.6, slow: 0, shake: 0, lastHour: 23, paused: false, shield: 0,
-    event: null, lastEvent: null, weaponName: 'Pede'
-  };
-  let ents = [], parts = [], texts = [], smoke = [], fw = [], smokeT = 0, festaT = 0, croakT = 3, fwQueue = [];
+  // Le regole che decidono i punti stanno in supabase/functions/_shared/sim.js (GattitopiSim):
+  // lo stesso codice gira sul server, che rigioca la partita dai clic e salva il punteggio che ottiene lui.
+  const Sim = window.GattitopiSim;
+  const game = { state: 'menu', record: 0, paused: false, shake: 0, shownLives: Sim.MAX_LIVES, acc: 0, gameId: null, inputs: [] };
+  let S = Sim.create(1);
+  let parts = [], texts = [], smoke = [], fw = [], smokeT = 0, festaT = 0, croakT = 3, fwQueue = [];
   const pointer = { x: -100, y: -100, show: 0, swing: 1, lx: 0, ly: 0 };
 
   try { game.record = parseInt(localStorage.getItem('gattitopi-record') || '0', 10) || 0; } catch (e) {}
 
   const HIT_LINES = ['Mizzica!', 'Talìa chistu!', "Va' curcati!", 'Pigghiatu!', 'Chi schifiu!', "Unn'è ca vai?", 'Ammazzalu!', 'Bedda matri!'];
-  const EVENTS = {
-    ondata: { label: 'Ondata di gattitopi', dur: 10 },
-    blackout: { label: 'Blackout!', dur: 12 },
-    festa: { label: 'Festa di Santa Barbara', dur: 12 }
-  };
+  const EVENT_LABELS = { ondata: 'Ondata di gattitopi', blackout: 'Blackout!', festa: 'Festa di Santa Barbara' };
 
-  const isPest = e => e.type === 'rat' || e.type === 'boss' || e.type === 'baby';
-  function mult() { return Math.min(5, 1 + Math.floor(game.combo / 5)); }
-  function bonus() { return game.event && game.event.type === 'festa' ? 2 : 1; }
-  function progress() { return Math.min(1, game.elapsed / DURATION); }
-
-  function reset() {
-    Object.assign(game, {
-      score: 0, combo: 0, maxCombo: 0, lives: 10, hitstop: 0, elapsed: 0, spawnT: 0.8, slow: 0, shake: 0,
-      lastHour: 23, shield: 0, event: null, lastEvent: null, weaponName: 'Pede'
-    });
-    ents = []; parts = []; texts = []; fw = []; fwQueue = []; runners = [];
-    pointer.lx = W / 2; pointer.ly = H * 0.7;
-  }
-
-  function freeHoles() { return holes.map((_, i) => i).filter(i => !ents.some(e => e.hole === i)); }
-
-  function spawn() {
-    const free = freeHoles();
-    if (!free.length) return;
-    const hole = pick(free);
-    const p = progress(), r = Math.random();
-    const table = [
-      ['ara', 0.04], ['tri', 0.025], ['fuochi', p > 0.15 ? 0.02 : 0], ['frog', 0.06],
-      ['girl', 0.1 + 0.06 * p], ['boss', 0.04 + 0.07 * p], ['baby', 0.1 + 0.08 * p]
-    ];
-    let type = 'rat', acc = 0;
-    for (const [t, pr] of table) { acc += pr; if (r < acc) { type = t; break; } }
-    const baseStay = 1.35 - 0.75 * p;
-    const stayBy = { boss: baseStay * 1.8, ara: baseStay * 0.8, tri: baseStay * 0.75, fuochi: baseStay * 0.7, baby: baseStay * 0.55, frog: 0.55 };
-    if (type === 'boss') panic();
-    const h = holes[hole];
-    for (let i = 0; i < 7; i++) parts.push({ x: h.cx + rnd(-h.r, h.r), y: h.cy + rnd(-2, 4), vx: rnd(-30, 30), vy: rnd(-40, -10), r: rnd(2, 4.5), col: 'rgba(150,140,130,0.5)', t: 0, life: rnd(0.5, 0.9), g: -10 });
-    ents.push({
-      hole, type, seed: 1 + Math.floor(Math.random() * 997), rise: 0, state: 'rise', t: 0, anim: Math.random() * 10, wob: 0, dead: false,
-      hp: type === 'boss' ? 3 : 1, jumps: type === 'frog' ? 2 + Math.floor(Math.random() * 3) : 0,
-      stay: stayBy[type] || baseStay * rnd(0.85, 1.15)
-    });
-  }
+  const isPest = Sim.isPest, hittable = Sim.hittable;
+  const mult = () => Sim.mult(S), bonus = () => Sim.bonus(S), progress = () => Sim.progress(S);
 
   const SCALE = { rat: 1, boss: 1, baby: 0.72, girl: 1, frog: 1, ara: 1, tri: 1, fuochi: 1 };
   const HEIGHT = { rat: 2.5, boss: 2.75, baby: 1.85, girl: 2.5, frog: 1.5, ara: 2.3, tri: 2.15, fuochi: 2.4 };
@@ -1200,9 +1152,6 @@
     sfx.boom();
   }
 
-  function hittable(e) {
-    return !e.dead && e.state !== 'hit' && (e.state === 'jump' || e.rise >= 0.35);
-  }
   function contains(e, x, y) {
     const pad = 8;
     if (e.state === 'jump') {
@@ -1213,24 +1162,22 @@
     return x > h.cx - w - pad && x < h.cx + w + pad && y > top - pad && y < h.cy + h.r * 0.4 + pad;
   }
   function entPos(e) {
-    if (e.state === 'jump') { const p = jumpPos(e); return { x: p.x, y: p.y - p.r * 1.2 }; }
+    if (e.state === 'jump' || (e.from !== undefined && e.jt < 1)) { const p = jumpPos(e); return { x: p.x, y: p.y - p.r * 1.2 }; }
     const h = holes[e.hole]; return { x: h.cx, y: anchorY(e, h) - spriteHeight(e, h) * 0.75 };
   }
-
-  function bumpCombo() {
-    game.combo++;
-    game.maxCombo = Math.max(game.maxCombo, game.combo);
+  function nearestHole(x, y) {
+    let best = -1, bd = Infinity;
+    holes.forEach((h, i) => { const d = Math.hypot(x - h.cx, (y - h.cy) * 1.3); if (d < h.r * 2.2 && d < bd) { bd = d; best = i; } });
+    return best;
   }
-  function breakCombo() { game.combo = 0; }
 
   // ---------- Rosario di Santa Barbara (vite) ----------
-  const MAX_LIVES = 10;
   function buildRosary() {
     // 10 grani di corallo sull'anello, la medaglia di Santa Barbara chiude l'anello in basso
     const g = $('beads'), NS = 'http://www.w3.org/2000/svg';
     g.innerHTML = '';
-    for (let i = 0; i < MAX_LIVES; i++) {
-      const a = Math.PI / 2 + (i + 1) * Math.PI * 2 / (MAX_LIVES + 1);
+    for (let i = 0; i < Sim.MAX_LIVES; i++) {
+      const a = Math.PI / 2 + (i + 1) * Math.PI * 2 / (Sim.MAX_LIVES + 1);
       const x = 60 + Math.cos(a) * 42, y = 54 + Math.sin(a) * 42;
       const b = document.createElementNS(NS, 'g');
       b.setAttribute('class', 'bead');
@@ -1243,147 +1190,114 @@
       b.append(ball, hi);
       g.appendChild(b);
     }
+    game.shownLives = S.lives;
     updateLivesLabel();
   }
   function updateLivesLabel() {
-    $('hLives').textContent = `${game.lives} ${game.lives === 1 ? 'vita' : 'vite'}`;
-    $('rosary').setAttribute('aria-label', `Rosario: ${game.lives} palline`);
+    $('hLives').textContent = `${S.lives} ${S.lives === 1 ? 'vita' : 'vite'}`;
+    $('rosary').setAttribute('aria-label', `Rosario: ${S.lives} palline`);
   }
-  function loseLives(n) {
-    for (let k = 0; k < n && game.lives > 0; k++) {
-      game.lives--;
-      const b = $('beads').children[game.lives];
-      b.classList.remove('regain'); b.classList.add('lost');
-    }
-    updateLivesLabel();
-    sfx.tink();
-    stage.classList.remove('hurt'); void stage.offsetWidth; stage.classList.add('hurt');
-  }
-  function gainLife() {
-    if (game.lives >= MAX_LIVES) return;
-    const b = $('beads').children[game.lives];
-    b.classList.remove('lost'); void b.getBoundingClientRect(); b.classList.add('regain');
-    game.lives++;
-    updateLivesLabel();
-  }
-
-  function kill(e, quiet) {
-    const p = entPos(e), wasJump = e.state === 'jump';
-    e.dead = true; e.state = 'hit'; e.t = 0;
-    if (e.type === 'boss') {
-      bumpCombo();
-      const pts = 500 * mult() * bonus();
-      game.score += pts; game.shake = Math.max(game.shake, 0.35); game.hitstop = 0.09;
-      puff(p.x, p.y, 24, '#6e6878'); if (!quiet) { sfx.boss(); playVoice('rumpiu', true); }
-      addText(p.x, p.y - 10, `+${pts}`, '#f2c230', 28);
-      addText(p.x, p.y - 46, "'U Zù è finutu!", '#e8642c', 20, 1.3);
-    } else if (e.type === 'frog') {
-      const air = wasJump;
-      bumpCombo();
-      const pts = (air ? 600 : 300) * mult() * bonus();
-      game.score += pts;
-      puff(p.x, p.y, 12, '#5fb04a'); if (!quiet) sfx.croak();
-      addText(p.x, p.y - 10, `+${pts}`, '#9be07f', 24);
-      addText(p.x, p.y - 42, air ? 'Al volo!' : 'Cra!', '#f4efe2', 18, 1.1);
+  // i grani seguono le vite del motore: cadono quando ne perdi, tornano quando le riprendi
+  function syncLives() {
+    const now = S.lives, beads = $('beads').children;
+    if (now === game.shownLives) return;
+    if (now < game.shownLives) {
+      for (let i = now; i < game.shownLives; i++) { beads[i].classList.remove('regain'); beads[i].classList.add('lost'); }
+      sfx.tink();
+      stage.classList.remove('hurt'); void stage.offsetWidth; stage.classList.add('hurt');
     } else {
-      bumpCombo();
-      const base = e.type === 'baby' ? 150 : 100;
-      const pts = base * mult() * bonus();
-      game.score += pts; game.hitstop = Math.max(game.hitstop, 0.04);
-      puff(p.x, p.y, 10, '#948e9b'); if (!quiet && !killVoice()) sfx.squeak(e.type === 'baby' ? 1.4 : 1);
-      addText(p.x, p.y - 10, `+${pts}`, '#f2c230', 22);
-      if (!quiet && Math.random() < 0.35) addText(p.x, p.y - 40, pick(HIT_LINES), '#f4efe2', 18, 1.1);
+      for (let i = game.shownLives; i < now; i++) { const b = beads[i]; b.classList.remove('lost'); void b.getBoundingClientRect(); b.classList.add('regain'); }
     }
-  }
-
-  function strike(e, dmg) {
-    const p = entPos(e);
-    if (e.type === 'boss') {
-      e.hp -= dmg; e.wob = 0.3; e.t = Math.max(0, e.t - 0.45);
-      if (e.hp <= 0) kill(e);
-      else { puff(p.x, p.y, 6, '#6e6878'); sfx.squeak(0.7); addText(p.x, p.y - 10, `ancora ${e.hp}`, '#f4efe2', 16, 0.6); }
-    } else if (e.type === 'girl') {
-      breakCombo();
-      e.state = 'hit'; e.t = 0; e.dead = true; game.shake = 0.25;
-      loseLives(1);
-      puff(p.x, p.y, 8, '#f4efe2'); playVoice('bambina', true);
-      addText(p.x, p.y - 20, "Scansa 'a picciridda!", '#e8642c', 20, 1.3);
-    } else if (e.type === 'ara') {
-      bumpCombo();
-      game.score += 50 * mult() * bonus(); game.slow = 5; gainLife();
-      e.state = 'hit'; e.t = 0; e.dead = true;
-      puff(p.x, p.y, 14, '#f2c230'); sfx.crunch();
-      addText(p.x, p.y - 20, 'Arancino!', '#f2c230', 24, 1.2);
-    } else if (e.type === 'tri') {
-      bumpCombo();
-      game.shield = Math.min(5, game.shield + 3);
-      e.state = 'hit'; e.t = 0; e.dead = true;
-      puff(p.x, p.y, 16, '#c8312b'); sfx.shield();
-      addText(p.x, p.y - 20, 'Trinacria: +3 scudi', '#f2c230', 20, 1.3);
-    } else if (e.type === 'fuochi') {
-      bumpCombo();
-      e.state = 'hit'; e.t = 0; e.dead = true;
-      addText(W / 2, hz * 0.5, 'Fuochi di Santa Barbara!', '#f2c230', 26, 1.6);
-      const targets = ents.filter(x => x !== e && !x.dead && (isPest(x) || x.type === 'frog'));
-      for (const x of targets) kill(x, true);
-      if (targets.some(isPest) && !playVoice('rumpiu', true)) sfx.squeak(1.2);
-      game.shake = 0.5;
-      for (let i = 0; i < 5; i++) fwQueue.push({ at: i * 0.18, x: rnd(W * 0.15, W * 0.85), y: rnd(hz * 0.15, hz * 0.6) });
-    } else {
-      kill(e);
-    }
+    game.shownLives = now;
+    updateLivesLabel();
   }
 
   function whack(x, y) {
     sfx.thwack();
     pointer.lx = x; pointer.ly = y;
-    const w = weapon();
-    // l'asse di legno passa sopra 'a picciridda: la colpisce solo il pede
-    const cand = ents.filter(e => hittable(e) && contains(e, x, y) && !(w.splash && e.type === 'girl')).sort((a, b) => {
-      const ra = a.state === 'jump' ? 9 : holes[a.hole].row, rb = b.state === 'jump' ? 9 : holes[b.hole].row;
-      return rb - ra;
-    });
-    const primary = cand[0];
-    let hits = 0;
-    if (primary) { strike(primary, w.dmg); hits++; }
+    const w = Sim.weapon(S);
+    const depth = e => (e.state === 'jump' ? 9 : holes[e.hole].row);
+    const under = S.ents.filter(e => hittable(e) && contains(e, x, y)).sort((a, b) => depth(b) - depth(a));
+    // l'asse di legno passa sopra 'a picciridda: si prende prima qualunque altro bersaglio
+    const target = under.find(e => !(w.splash && e.type === 'girl')) || under[0] || null;
+    const res = Sim.click(S, target ? target.id : -1, target ? -1 : nearestHole(x, y));
+    if (!res) return;
+    game.inputs.push(res.input);
     if (w.splash) {
       const reach = holes.length > 1 ? Math.abs(holes[1].cx - holes[0].cx) * 1.1 : 100;
-      for (const e of ents) {
-        if (e === primary || !hittable(e) || e.state === 'jump' || !isPest(e)) continue;
-        const h = holes[e.hole];
-        if (Math.hypot(h.cx - x, (h.cy - y) * 1.3) < reach) { strike(e, w.dmg); hits++; }
-      }
       parts.push({ x, y, vx: 0, vy: 0, r: reach * 0.5, col: 'ring', t: 0, life: 0.25, g: 0 });
     }
-    const overGirl = w.splash && ents.some(e => e.type === 'girl' && hittable(e) && contains(e, x, y));
-    if (!hits && overGirl) addText(x, y - 20, 'Scansata!', '#9be07f', 16, 0.7);
-    else if (!hits) { if (game.combo >= 5) addText(x, y - 20, 'Combo persa', '#f4efe2', 16, 0.7); breakCombo(); }
+    handleEvents(res.events, x, y);
   }
 
-  function escape(e) {
-    const h = holes[e.hole];
-    if (!isPest(e)) return;
-    if (game.shield > 0) {
-      game.shield--;
-      addText(h.cx, h.cy - h.r * 1.5, 'Parata!', '#f2c230', 18, 0.9);
-      sfx.shield();
-      return;
+  // effetti, scritte e suoni per quello che è successo nel motore
+  function handleEvents(list, cx, cy) {
+    for (const v of list) {
+      const e = v.e;
+      if (v.k === 'spawn') {
+        e.fur = 1 + Math.floor(Math.random() * 997); e.animOff = Math.random() * 10;
+        if (e.type === 'boss') panic();
+        const h = holes[e.hole];
+        for (let i = 0; i < 7; i++) parts.push({ x: h.cx + rnd(-h.r, h.r), y: h.cy + rnd(-2, 4), vx: rnd(-30, 30), vy: rnd(-40, -10), r: rnd(2, 4.5), col: 'rgba(150,140,130,0.5)', t: 0, life: rnd(0.5, 0.9), g: -10 });
+      } else if (v.k === 'kill') {
+        const p = entPos(e);
+        if (e.type === 'boss') {
+          game.shake = Math.max(game.shake, 0.35);
+          puff(p.x, p.y, 24, '#6e6878'); if (!v.quiet) { sfx.boss(); playVoice('rumpiu', true); }
+          addText(p.x, p.y - 10, `+${v.pts}`, '#f2c230', 28);
+          addText(p.x, p.y - 46, "'U Zù è finutu!", '#e8642c', 20, 1.3);
+        } else if (e.type === 'frog') {
+          puff(p.x, p.y, 12, '#5fb04a'); if (!v.quiet) sfx.croak();
+          addText(p.x, p.y - 10, `+${v.pts}`, '#9be07f', 24);
+          addText(p.x, p.y - 42, v.air ? 'Al volo!' : 'Cra!', '#f4efe2', 18, 1.1);
+        } else {
+          puff(p.x, p.y, 10, '#948e9b'); if (!v.quiet && !killVoice()) sfx.squeak(e.type === 'baby' ? 1.4 : 1);
+          addText(p.x, p.y - 10, `+${v.pts}`, '#f2c230', 22);
+          if (!v.quiet && Math.random() < 0.35) addText(p.x, p.y - 40, pick(HIT_LINES), '#f4efe2', 18, 1.1);
+        }
+      } else if (v.k === 'bossHit') {
+        const p = entPos(e);
+        puff(p.x, p.y, 6, '#6e6878'); sfx.squeak(0.7); addText(p.x, p.y - 10, `ancora ${e.hp}`, '#f4efe2', 16, 0.6);
+      } else if (v.k === 'girl') {
+        const p = entPos(e);
+        game.shake = 0.25;
+        puff(p.x, p.y, 8, '#f4efe2'); playVoice('bambina', true);
+        addText(p.x, p.y - 20, "Scansa 'a picciridda!", '#e8642c', 20, 1.3);
+      } else if (v.k === 'ara') {
+        const p = entPos(e);
+        puff(p.x, p.y, 14, '#f2c230'); sfx.crunch();
+        addText(p.x, p.y - 20, 'Arancino!', '#f2c230', 24, 1.2);
+      } else if (v.k === 'tri') {
+        const p = entPos(e);
+        puff(p.x, p.y, 16, '#c8312b'); sfx.shield();
+        addText(p.x, p.y - 20, 'Trinacria: +3 scudi', '#f2c230', 20, 1.3);
+      } else if (v.k === 'fuochi') {
+        addText(W / 2, hz * 0.5, 'Fuochi di Santa Barbara!', '#f2c230', 26, 1.6);
+        if (v.pests && !playVoice('rumpiu', true)) sfx.squeak(1.2);
+        game.shake = 0.5;
+        for (let i = 0; i < 5; i++) fwQueue.push({ at: i * 0.18, x: rnd(W * 0.15, W * 0.85), y: rnd(hz * 0.15, hz * 0.6) });
+      } else if (v.k === 'miss') {
+        if (v.overGirl) addText(cx, cy - 20, 'Scansata!', '#9be07f', 16, 0.7);
+        else if (v.prevCombo >= 5) addText(cx, cy - 20, 'Combo persa', '#f4efe2', 16, 0.7);
+      } else if (v.k === 'escape') {
+        const h = holes[e.hole];
+        if (v.shielded) { addText(h.cx, h.cy - h.r * 1.5, 'Parata!', '#f2c230', 18, 0.9); sfx.shield(); }
+        else { addText(h.cx, h.cy - h.r * 1.5, 'Scappau!', '#e8642c', 20, 1); sfx.escape(); }
+      } else if (v.k === 'jump') {
+        sfx.boing();
+      } else if (v.k === 'event') {
+        addText(W / 2, hz * 0.45, v.hour === 0 ? 'Mezzanotte!' : `Ore ${String(v.hour).padStart(2, '0')}:00`, '#f4efe2', 22, 1.8);
+        addText(W / 2, hz * 0.45 + 34, EVENT_LABELS[v.type], v.type === 'blackout' ? '#e8642c' : '#f2c230', 28, 2);
+        sfx.bell();
+        if (v.type === 'festa') firework(W / 2, hz * 0.3);
+      } else if (v.k === 'weapon') {
+        if (v.up) { addText(W / 2, H * 0.5, `${v.name}!`, '#f2c230', 34, 1.2); sfx.upgrade(); }
+      } else if (v.k === 'end') {
+        syncLives();
+        end(v.win);
+      }
     }
-    breakCombo();
-    loseLives(e.type === 'boss' ? 2 : 1);
-    addText(h.cx, h.cy - h.r * 1.5, 'Scappau!', '#e8642c', 20, 1);
-    sfx.escape();
-  }
-
-  function startEvent(hour) {
-    const keys = Object.keys(EVENTS).filter(k => k !== game.lastEvent);
-    const type = pick(keys);
-    game.lastEvent = type;
-    game.event = { type, t: EVENTS[type].dur };
-    addText(W / 2, hz * 0.45, hour === 0 ? 'Mezzanotte!' : `Ore ${String(hour).padStart(2, '0')}:00`, '#f4efe2', 22, 1.8);
-    addText(W / 2, hz * 0.45 + 34, EVENTS[type].label, type === 'blackout' ? '#e8642c' : '#f2c230', 28, 2);
-    sfx.bell();
-    if (type === 'festa') firework(W / 2, hz * 0.3);
+    syncLives();
   }
 
   function update(dt) {
@@ -1418,73 +1332,19 @@
     updateRunners(dt);
     updateGrill(dt);
     if (game.state !== 'play') return;
-    if (game.hitstop > 0) { game.hitstop -= dt; return; }
-
-    game.elapsed += dt;
-    game.slow = Math.max(0, game.slow - dt);
-    const sdt = dt * (game.slow > 0 ? 0.45 : 1);
-
-    if (game.event) {
-      game.event.t -= dt;
-      if (game.event.type === 'festa') {
-        festaT -= dt;
-        if (festaT <= 0) { festaT = 0.55; firework(rnd(W * 0.1, W * 0.9), rnd(hz * 0.1, hz * 0.6)); }
-      }
-      if (game.event.t <= 0) game.event = null;
+    if (S.event && S.event.type === 'festa') {
+      festaT -= dt;
+      if (festaT <= 0) { festaT = 0.55; firework(rnd(W * 0.1, W * 0.9), rnd(hz * 0.1, hz * 0.6)); }
     }
-
-    const mins = (START_MIN + Math.floor(game.elapsed * 2)) % (24 * 60), hour = Math.floor(mins / 60);
-    if (hour !== game.lastHour) { game.lastHour = hour; if (hour !== 6) startEvent(hour); }
-
-    const w = weapon();
-    if (w.name !== game.weaponName) {
-      const up = WEAPONS.indexOf(w) > WEAPONS.findIndex(x => x.name === game.weaponName);
-      game.weaponName = w.name;
-      if (up) { addText(W / 2, H * 0.5, `${w.name}!`, '#f2c230', 34, 1.2); sfx.upgrade(); }
-    }
-
-    game.spawnT -= sdt;
-    if (game.spawnT <= 0) {
-      const p = progress(), rush = game.event && game.event.type === 'ondata' ? 0.4 : 1;
-      game.spawnT = (1.05 - 0.62 * p) * rnd(0.75, 1.2) * rush;
-      spawn();
-      if (p > 0.35 && Math.random() < 0.15 + 0.25 * p) spawn();
-    }
-
-    for (const e of ents) {
-      e.anim += sdt; e.wob = Math.max(0, e.wob - sdt);
-      if (e.state === 'rise') { e.rise += sdt / 0.2; if (e.rise >= 1) { e.rise = 1; e.state = 'stay'; e.t = 0; } }
-      else if (e.state === 'stay') {
-        e.t += sdt;
-        if (e.t >= e.stay) {
-          if (e.type === 'frog' && e.jumps > 0) {
-            const free = freeHoles();
-            if (free.length) {
-              e.from = e.hole; e.hole = pick(free); e.state = 'jump'; e.jt = 0; e.jumps--; sfx.boing();
-            } else e.state = 'down';
-          } else e.state = 'down';
-        }
-      }
-      else if (e.state === 'jump') {
-        e.jt += sdt / 0.5;
-        if (e.jt >= 1) { e.state = 'stay'; e.t = 0; e.rise = 1; }
-      }
-      else if (e.state === 'hit') { e.t += sdt; if (e.t >= 0.4) { e.state = 'down'; if (e.from !== undefined && e.jt < 1) e.rise = 1; } }
-      else if (e.state === 'down') {
-        e.rise -= sdt / (e.dead ? 0.12 : e.type === 'baby' ? 0.1 : 0.18);
-        if (e.rise <= 0) { e.gone = true; if (!e.dead) escape(e); }
-      }
-    }
-    ents = ents.filter(e => !e.gone);
-
-    if (game.lives <= 0) end(false);
-    else if (game.elapsed >= DURATION) end(true);
+    // il motore avanza a passo fisso (1/60 s), come quando il server rigioca la partita
+    game.acc = Math.min(game.acc + dt, 0.25);
+    while (game.acc >= Sim.TICK && game.state === 'play') { game.acc -= Sim.TICK; handleEvents(Sim.step(S)); }
   }
 
   // ---------- Disegno ----------
   function drawEnt(c, e, s, look) {
-    const ph = e.anim % 3.4, blink = ph < 0.14 ? 1 - Math.abs(ph / 0.07 - 1) : 0;
-    const o = { t: e.anim, hit: e.dead, boss: e.type === 'boss', baby: e.type === 'baby', hp: e.hp, seed: e.seed, look, blink };
+    const ph = (e.anim + (e.animOff || 0)) % 3.4, blink = ph < 0.14 ? 1 - Math.abs(ph / 0.07 - 1) : 0;
+    const o = { t: e.anim + (e.animOff || 0), hit: e.dead, boss: e.type === 'boss', baby: e.type === 'baby', hp: e.hp, seed: e.fur, look, blink };
     if (isPest(e)) drawRat(c, s * SCALE[e.type], o);
     else if (e.type === 'girl') drawGirl(c, s, o);
     else if (e.type === 'frog') drawFrog(c, s, o);
@@ -1557,7 +1417,7 @@
       ell(ctx, h.cx, h.cy + h.r * 0.08, h.r * 1.18, h.r * 0.5, 'rgba(0,0,0,0.35)');
       ell(ctx, h.cx, h.cy, h.r * 1.06, h.r * 0.44, '#5d5f6b');
       ell(ctx, h.cx, h.cy, h.r * 0.92, h.r * 0.36, '#07070b');
-      const e = ents.find(en => en.hole === i && en.state !== 'jump' && !(en.from !== undefined && en.state === 'hit' && en.jt < 1));
+      const e = S.ents.find(en => en.hole === i && en.state !== 'jump' && !(en.from !== undefined && en.state === 'hit' && en.jt < 1));
       if (e) {
         ctx.save();
         ctx.beginPath(); ctx.rect(h.cx - h.r * 4, h.cy - h.r * 6, h.r * 8, h.r * 6); ctx.clip();
@@ -1585,7 +1445,7 @@
     }
 
     // rane in volo (o colpite in volo)
-    for (const e of ents) {
+    for (const e of S.ents) {
       const air = e.state === 'jump' || (e.from !== undefined && e.state === 'hit' && e.jt < 1);
       if (!air) continue;
       const jp = jumpPos(e);
@@ -1603,14 +1463,14 @@
     }
 
     // Blackout: buio con la luce della torcia sul pede, si vedono solo gli occhi rossi
-    if (game.state === 'play' && game.event && game.event.type === 'blackout') {
-      const fade = Math.min(1, (EVENTS.blackout.dur - game.event.t) / 0.6, game.event.t / 0.6);
+    if (game.state === 'play' && S.event && S.event.type === 'blackout') {
+      const fade = Math.min(1, (S.event.dur - S.event.t) / 0.6, S.event.t / 0.6);
       const lx = pointer.show > 0 ? pointer.x : pointer.lx, ly = pointer.show > 0 ? pointer.y : pointer.ly;
       const rad = Math.max(90, Math.min(W, H) * 0.22);
       const g = ctx.createRadialGradient(lx, ly, rad * 0.25, lx, ly, rad);
       g.addColorStop(0, 'rgba(5,6,15,0)'); g.addColorStop(1, `rgba(5,6,15,${0.94 * fade})`);
       ctx.fillStyle = g; ctx.fillRect(-20, -20, W + 40, H + 40);
-      for (const e of ents) {
+      for (const e of S.ents) {
         if (!isPest(e) || e.dead || e.state === 'jump') continue;
         const h = holes[e.hole], ay = anchorY(e, h);
         if (ay - spriteHeight(e, h) * 0.7 > h.cy) continue;
@@ -1633,9 +1493,9 @@
 
     if (game.state === 'play') {
       const labels = [];
-      if (game.event) labels.push([`${EVENTS[game.event.type].label} · ${Math.ceil(game.event.t)}s`, game.event.type === 'blackout' ? '#e8642c' : '#f2c230']);
-      if (game.slow > 0) labels.push([`Pausa arancino ${game.slow.toFixed(1)}s`, '#f2c230']);
-      if (game.shield > 0) labels.push([`Scudo Trinacria ×${game.shield}`, '#f4efe2']);
+      if (S.event) labels.push([`${EVENT_LABELS[S.event.type]} · ${Math.ceil(S.event.t)}s`, S.event.type === 'blackout' ? '#e8642c' : '#f2c230']);
+      if (S.slow > 0) labels.push([`Pausa arancino ${S.slow.toFixed(1)}s`, '#f2c230']);
+      if (S.shield > 0) labels.push([`Scudo Trinacria ×${S.shield}`, '#f4efe2']);
       ctx.font = `16px ${DISPLAY}`; ctx.lineWidth = 5; ctx.strokeStyle = '#0f1630';
       labels.forEach(([txt, col], i) => { ctx.strokeText(txt, W / 2, 20 + i * 22); ctx.fillStyle = col; ctx.fillText(txt, W / 2, 20 + i * 22); });
     }
@@ -1644,7 +1504,7 @@
     if (pointer.show > 0) {
       const k = pointer.swing;
       const ang = -0.55 + Math.sin(Math.PI * k) * 1.1;
-      drawWeapon(ctx, game.state === 'play' ? game.weaponName : 'Pede', pointer.x + 6, pointer.y - 12, ang, 1 + Math.sin(Math.PI * k) * 0.15);
+      drawWeapon(ctx, game.state === 'play' ? Sim.weapon(S).name : 'Pede', pointer.x + 6, pointer.y - 12, ang, 1 + Math.sin(Math.PI * k) * 0.15);
     }
   }
 
@@ -1700,12 +1560,11 @@
   }
 
   function end(win) {
-    game.state = 'over'; game.event = null;
-    const dawn = win ? game.lives * 1000 : 0;
-    game.score += dawn;
+    game.state = 'over';
+    const dawn = S.dawnBonus || 0;
     let isRecord = false;
-    if (game.score > game.record) {
-      game.record = game.score; isRecord = true;
+    if (S.score > game.record) {
+      game.record = S.score; isRecord = true;
       try { localStorage.setItem('gattitopi-record', String(game.record)); } catch (e) {}
     }
     sfx.end(win);
@@ -1713,31 +1572,44 @@
     $('endEyebrow').textContent = win ? "06:00 · È l'alba" : `${$('hClock').textContent} · Rosario sgranato`;
     $('endTitle').textContent = win ? 'Paternò è salva' : 'I gattitopi hanno vinto';
     $('endText').textContent = win
-      ? `Hai tenuto la piazza fino al mattino. Bonus alba: +${dawn} punti per le ${game.lives} palline rimaste sul rosario.${isRecord ? ' Nuovo record.' : ''}`
+      ? `Hai tenuto la piazza fino al mattino. Bonus alba: +${dawn} punti per le ${S.lives} palline rimaste sul rosario.${isRecord ? ' Nuovo record.' : ''}`
       : `I tombini sono loro, almeno per stanotte. Tieni la combo alta per arrivare all'asse di legno, e conserva gli scudi della Trinacria per il blackout.${isRecord ? ' Nuovo record, comunque.' : ''}`;
-    $('endScore').textContent = game.score.toLocaleString('it-IT');
+    $('endScore').textContent = S.score.toLocaleString('it-IT');
     $('endRecord').textContent = game.record.toLocaleString('it-IT');
-    $('endCombo').textContent = game.maxCombo;
-    $('endRank').textContent = rankFor(game.score);
-    if (window.Online) window.Online.finish(game.score, game.maxCombo, win);
+    $('endCombo').textContent = S.maxCombo;
+    $('endRank').textContent = rankFor(S.score);
+    if (window.Online) window.Online.finish({ gameId: game.gameId, inputs: game.inputs, score: S.score, maxCombo: S.maxCombo, win });
     $('ovEnd').hidden = false;
     $('againBtn').focus();
   }
 
-  function start() {
-    audio(); reset(); buildRosary();
+  async function start() {
+    if (game.state === 'starting') return;
+    audio();
+    game.state = 'starting';
+    $('startBtn').disabled = $('againBtn').disabled = true;
+    // da loggato il seed lo sceglie il server, che poi rigioca la partita con quel seed
+    const online = window.Online ? await window.Online.newGame() : null;
+    $('startBtn').disabled = $('againBtn').disabled = false;
+    S = Sim.create(online ? online.seed : Math.floor(Math.random() * 2 ** 31));
+    game.gameId = online ? online.id : null;
+    game.inputs = []; game.acc = 0; game.shake = 0;
+    parts = []; texts = []; fw = []; fwQueue = []; runners = [];
+    pointer.lx = W / 2; pointer.ly = H * 0.7;
+    buildRosary();
     game.state = 'play';
     $('ovStart').hidden = true; $('ovEnd').hidden = true;
   }
 
   function updateHud() {
-    $('hScore').textContent = game.score.toLocaleString('it-IT');
+    $('hScore').textContent = S.score.toLocaleString('it-IT');
     $('hRecord').textContent = game.record.toLocaleString('it-IT');
-    $('hCombo').textContent = `${game.combo} · x${mult() * bonus()}`;
-    $('hWeapon').textContent = game.weaponName;
-    $('hWeapon').classList.toggle('weapon-up', game.weaponName !== 'Pede');
-    $('hShield').textContent = game.shield;
-    const mins = (START_MIN + Math.floor(game.elapsed * 2)) % (24 * 60);
+    const wn = Sim.weapon(S).name;
+    $('hCombo').textContent = `${S.combo} · x${mult() * bonus()}`;
+    $('hWeapon').textContent = wn;
+    $('hWeapon').classList.toggle('weapon-up', wn !== 'Pede');
+    $('hShield').textContent = S.shield;
+    const mins = (Sim.START_MIN + Math.floor(S.elapsed * 2)) % (24 * 60);
     $('hClock').textContent = `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
   }
 
