@@ -63,31 +63,61 @@
   }
 
   // Simulacro di Santa Barbara (1745): abito d'argento cesellato, attributi d'oro.
-  // Animato in loop come una gif: riflesso che scorre sull'argento, aureola a raggi, palma che ondeggia, scintille.
+  // Animazione in loop: raggi di luce che ruotano dietro la statua, onde di luce dall'aureola,
+  // riflesso che scorre sull'argento, manto e palma mossi dal vento, gemme e lumini che brillano, petali di rosa.
   function drawSBFigure(t) {
     const { x, top, S } = sb, c = ctx;
     if (!S) return;
-    const pulse = 0.5 + 0.5 * Math.sin(t * 2);
-    const glow = c.createRadialGradient(x, top - S * 0.55, 2, x, top - S * 0.55, S * (1.5 + pulse * 0.25));
-    glow.addColorStop(0, `rgba(242,214,120,${0.24 + pulse * 0.12})`); glow.addColorStop(1, 'rgba(242,194,48,0)');
-    c.fillStyle = glow; c.fillRect(x - S * 2.2, top - S * 2.4, S * 4.4, S * 3.8);
-    // raggi dell'aureola
-    const hx = x, hy = top - S * 0.86;
+    const breath = Math.sin(t * 1.3), pulse = 0.5 + 0.5 * Math.sin(t * 2);
+    const fy = top - S * 0.55, hx = x, hy = top - S * 0.86;
+
+    // alone che respira
+    const glow = c.createRadialGradient(x, fy, 2, x, fy, S * (1.6 + 0.2 * breath));
+    glow.addColorStop(0, `rgba(255,222,140,${0.22 + pulse * 0.12})`); glow.addColorStop(1, 'rgba(242,194,48,0)');
+    c.fillStyle = glow; c.fillRect(x - S * 2.4, fy - S * 2.2, S * 4.8, S * 4.4);
+
+    // raggi di luce dietro la statua: ruotano piano e si allungano a turno
+    c.save(); c.translate(x, fy); c.rotate(t * 0.15); c.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 12; i++) {
+      const a = i * Math.PI / 6, w = 0.07, len = S * (1.05 + 0.4 * Math.sin(t * 1.7 + i * 1.3));
+      const rg = c.createLinearGradient(0, 0, Math.cos(a) * len, Math.sin(a) * len);
+      rg.addColorStop(0, 'rgba(255,225,150,0.26)'); rg.addColorStop(1, 'rgba(255,225,150,0)');
+      c.fillStyle = rg;
+      c.beginPath(); c.moveTo(0, 0);
+      c.lineTo(Math.cos(a - w) * len, Math.sin(a - w) * len); c.lineTo(Math.cos(a + w) * len, Math.sin(a + w) * len);
+      c.closePath(); c.fill();
+    }
+    c.restore();
+
+    // onde di luce che partono dall'aureola
+    for (const k of [0, 0.5]) {
+      const ph = (t / 2.6 + k) % 1;
+      c.strokeStyle = `rgba(255,226,140,${(1 - ph) * 0.45})`; c.lineWidth = Math.max(1, S * 0.02 * (1 - ph) + 0.5);
+      c.beginPath(); c.arc(hx, hy, S * (0.2 + 0.6 * ph), 0, Math.PI * 2); c.stroke();
+    }
+    // aureola a raggi
     c.save(); c.translate(hx, hy); c.rotate(t * 0.4);
-    c.strokeStyle = `rgba(255,226,140,${0.35 + pulse * 0.25})`; c.lineWidth = Math.max(1, S * 0.02);
+    c.strokeStyle = `rgba(255,226,140,${0.4 + pulse * 0.3})`; c.lineWidth = Math.max(1, S * 0.02);
     for (let i = 0; i < 16; i++) {
-      const a = i * Math.PI / 8, r0 = S * 0.2, r1 = S * (i % 2 ? 0.3 : 0.38);
+      const a = i * Math.PI / 8, r0 = S * 0.2, r1 = S * (i % 2 ? 0.3 : 0.38) * (1 + 0.06 * Math.sin(t * 3 + i));
       c.beginPath(); c.moveTo(Math.cos(a) * r0, Math.sin(a) * r0); c.lineTo(Math.cos(a) * r1, Math.sin(a) * r1); c.stroke();
     }
     c.restore();
+    const disc = c.createRadialGradient(hx, hy, 1, hx, hy, S * 0.19);
+    disc.addColorStop(0, 'rgba(255,240,190,0.35)'); disc.addColorStop(1, 'rgba(255,220,120,0.08)');
+    ell(c, hx, hy, S * 0.18, S * 0.18, disc);
     c.strokeStyle = '#f2c94c'; c.lineWidth = Math.max(1, S * 0.03);
     c.beginPath(); c.arc(hx, hy, S * 0.18, 0, Math.PI * 2); c.stroke();
+
     // torre d'oro, attributo della santa
     c.fillStyle = '#d9b443';
     c.fillRect(x - S * 0.46, top - S * 0.46, S * 0.15, S * 0.44);
     for (let i = 0; i < 3; i++) c.fillRect(x - S * 0.46 + i * S * 0.055, top - S * 0.52, S * 0.035, S * 0.07);
     c.fillStyle = '#6a4f12';
     for (let i = 0; i < 3; i++) c.fillRect(x - S * 0.405, top - S * (0.38 - i * 0.11), S * 0.04, S * 0.06);
+    c.fillStyle = `rgba(255,240,180,${0.3 + 0.4 * pulse})`;
+    c.fillRect(x - S * 0.46, top - S * 0.46, S * 0.03, S * 0.44);
+
     // abito d'argento con riflesso che scorre
     const band = ((t * 0.35) % 1.6) - 0.3;
     const silver = c.createLinearGradient(x - S * 0.3, top - S * 0.75, x + S * 0.3, top);
@@ -96,31 +126,43 @@
     silver.addColorStop(Math.max(0, Math.min(1, band)), '#ffffff');
     silver.addColorStop(Math.max(0, Math.min(1, band + 0.12)), '#b9bfcc');
     silver.addColorStop(1, '#6f7686');
+    const sway = Math.sin(t * 1.5) * S * 0.025;   // il manto si muove col vento
     c.fillStyle = silver;
     c.beginPath();
-    c.moveTo(x - S * 0.3, top - S * 0.04);
+    c.moveTo(x - S * 0.3 - sway, top - S * 0.04);
     c.quadraticCurveTo(x - S * 0.22, top - S * 0.48, x - S * 0.13, top - S * 0.72);
     c.lineTo(x + S * 0.13, top - S * 0.72);
-    c.quadraticCurveTo(x + S * 0.22, top - S * 0.48, x + S * 0.3, top - S * 0.04);
+    c.quadraticCurveTo(x + S * 0.22, top - S * 0.48, x + S * 0.3 + sway * 0.6, top - S * 0.04);
     c.closePath(); c.fill();
     // pieghe cesellate e bordo d'oro del manto
     c.strokeStyle = 'rgba(70,76,92,0.55)'; c.lineWidth = Math.max(1, S * 0.015);
     for (const fx of [-0.14, -0.04, 0.06, 0.16]) {
-      c.beginPath(); c.moveTo(x + S * fx * 0.5, top - S * 0.6); c.quadraticCurveTo(x + S * fx * 1.4, top - S * 0.3, x + S * fx * 1.6, top - S * 0.05); c.stroke();
+      c.beginPath(); c.moveTo(x + S * fx * 0.5, top - S * 0.6); c.quadraticCurveTo(x + S * fx * 1.4 + sway * 0.4, top - S * 0.3, x + S * fx * 1.6 + sway * 0.6, top - S * 0.05); c.stroke();
     }
     c.strokeStyle = '#e2b33c'; c.lineWidth = Math.max(1, S * 0.025);
-    c.beginPath(); c.moveTo(x - S * 0.13, top - S * 0.7); c.quadraticCurveTo(x - S * 0.24, top - S * 0.35, x - S * 0.3, top - S * 0.05); c.stroke();
-    c.beginPath(); c.moveTo(x - S * 0.3, top - S * 0.05); c.lineTo(x + S * 0.3, top - S * 0.05); c.stroke();
+    c.beginPath(); c.moveTo(x - S * 0.13, top - S * 0.7); c.quadraticCurveTo(x - S * 0.24 - sway, top - S * 0.35, x - S * 0.3 - sway, top - S * 0.05); c.stroke();
+    c.beginPath(); c.moveTo(x - S * 0.3 - sway, top - S * 0.05); c.lineTo(x + S * 0.3 + sway * 0.6, top - S * 0.05); c.stroke();
     // volto e mani in smalto
     ell(c, x, top - S * 0.81, S * 0.085, S * 0.1, '#e9c7a8');
     ell(c, x - S * 0.03, top - S * 0.83, S * 0.01, S * 0.012, '#5a3a2a');
     ell(c, x + S * 0.03, top - S * 0.83, S * 0.01, S * 0.012, '#5a3a2a');
+    ell(c, x - S * 0.045, top - S * 0.79, S * 0.018, S * 0.01, 'rgba(230,120,120,0.35)');
+    ell(c, x + S * 0.045, top - S * 0.79, S * 0.018, S * 0.01, 'rgba(230,120,120,0.35)');
     ell(c, x + S * 0.13, top - S * 0.45, S * 0.04, S * 0.035, '#e9c7a8');
-    // corona d'oro con scintilla
+    // corona d'oro con gemme che brillano a turno
     c.fillStyle = '#f2c94c';
     c.beginPath(); c.moveTo(x - S * 0.09, top - S * 0.9);
     for (let i = 0; i <= 4; i++) c.lineTo(x - S * 0.09 + i * S * 0.045, top - S * (i % 2 ? 0.95 : 1.02));
     c.lineTo(x + S * 0.09, top - S * 0.9); c.closePath(); c.fill();
+    ['#e0405a', '#4a8cff', '#e0405a'].forEach((col, i) => {
+      const gx = x + (i - 1) * S * 0.045, gy = top - S * 0.925, tw = Math.max(0, Math.sin(t * 2.5 - i * 2.1));
+      ell(c, gx, gy, S * 0.014, S * 0.014, col);
+      if (tw > 0.6) {
+        const r = S * 0.05 * (tw - 0.6) / 0.4;
+        c.strokeStyle = `rgba(255,255,255,${tw})`; c.lineWidth = 1;
+        c.beginPath(); c.moveTo(gx - r, gy); c.lineTo(gx + r, gy); c.moveTo(gx, gy - r); c.lineTo(gx, gy + r); c.stroke();
+      }
+    });
     // palma d'oro che ondeggia
     c.save(); c.translate(x + S * 0.13, top - S * 0.45); c.rotate(Math.sin(t * 1.6) * 0.09);
     c.strokeStyle = '#e2b33c'; c.lineWidth = Math.max(1, S * 0.03); c.lineCap = 'round';
@@ -131,6 +173,31 @@
       c.moveTo(px, py); c.lineTo(px - S * 0.1, py + S * 0.06 - fl); c.stroke();
     }
     c.restore();
+
+    // lumini accesi ai piedi della colonna
+    const cy0 = top + S * 1.5;
+    [-0.3, -0.18, 0.18, 0.3].forEach((ox, i) => {
+      const lx = x + ox * S, fl = 1 + 0.25 * Math.sin(t * 13 + i * 2) * Math.sin(t * 7.1 + i);
+      const lg = c.createRadialGradient(lx, cy0 - S * 0.14, 1, lx, cy0 - S * 0.14, S * 0.18);
+      lg.addColorStop(0, `rgba(255,190,90,${0.35 * fl})`); lg.addColorStop(1, 'rgba(255,190,90,0)');
+      c.fillStyle = lg; c.fillRect(lx - S * 0.2, cy0 - S * 0.35, S * 0.4, S * 0.4);
+      c.fillStyle = '#c8312b'; c.fillRect(lx - S * 0.03, cy0 - S * 0.09, S * 0.06, S * 0.09);
+      c.fillStyle = '#f4efe2'; c.fillRect(lx - S * 0.022, cy0 - S * 0.11, S * 0.044, S * 0.03);
+      c.fillStyle = '#ffd36a';
+      c.beginPath(); c.moveTo(lx, cy0 - S * (0.11 + 0.08 * fl));
+      c.quadraticCurveTo(lx + S * 0.025, cy0 - S * 0.12, lx, cy0 - S * 0.105);
+      c.quadraticCurveTo(lx - S * 0.025, cy0 - S * 0.12, lx, cy0 - S * (0.11 + 0.08 * fl)); c.fill();
+    });
+
+    // petali di rosa che scendono girando
+    for (let i = 0; i < 8; i++) {
+      const ph = (t * 0.11 + i / 8) % 1, a = Math.sin(Math.PI * ph);
+      const px = x + Math.sin(ph * Math.PI * 3 + i * 1.7) * S * 0.85, py = fy - S * 1.3 + ph * S * 2.7;
+      c.save(); c.translate(px, py); c.rotate(t * 1.5 + i); c.scale(1, 0.55 + 0.45 * Math.sin(t * 2.2 + i));
+      ell(c, 0, 0, S * 0.035, S * 0.022, `rgba(224,86,106,${0.85 * a})`);
+      c.restore();
+    }
+
     // cartiglio rosso che sventola sulla colonna, sotto la statua
     const rw = Math.max(S * 3.2, 120), rh = Math.max(S * 0.34, 14), ry = top + S * 0.7;
     const n = 14;

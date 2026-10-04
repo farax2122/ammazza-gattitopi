@@ -17,7 +17,6 @@
   <div class="stat"><small>Arma</small><b id="hWeapon">Pede</b></div>
   <div class="stat"><small>Scudo</small><b id="hShield">0</b></div>
   <div class="stat"><small>Ora</small><b id="hClock">23:40</b></div>
-  <button class="icon-btn" id="restartBtn" type="button">Ricomincia</button>
   <button class="icon-btn" id="boardBtn" type="button" hidden title="Anche con il tasto Esc">Classifica <kbd>Esc</kbd></button>
   <button class="icon-btn" id="muteBtn" type="button">Audio: sì</button>
 </div>
@@ -78,7 +77,7 @@
         </div>
       </div>
       <div class="account" data-account></div>
-      <button class="big-btn" id="startBtn" type="button">Scàusati e parti</button>
+      <button class="big-btn" id="startBtn" type="button">Amunì</button>
       <p class="fine">Clicca o tocca per colpire. Voci e ispirazione dal servizio <a href="https://www.youtube.com/watch?v=8BVv4spYvRM" target="_blank" rel="noopener">«Eroe ammazza gattitopi di Paternò»</a> (Mpare Catania).</p>
     </div>
   </div>
@@ -110,7 +109,10 @@
       <h2>Classifica di Paternò</h2>
       <ol class="board" id="boardFull"></ol>
       <p class="fine">Conta il miglior punteggio di ogni giocatore, verificato dal server.</p>
-      <button class="big-btn" id="boardClose" type="button">Torna al gioco</button>
+      <div class="board-actions">
+        <button class="big-btn" id="boardClose" type="button">Torna al gioco</button>
+        <button class="big-btn alt" id="restartBtn" type="button">Ricomincia</button>
+      </div>
     </div>
   </div>
 
