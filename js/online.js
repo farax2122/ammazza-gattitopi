@@ -132,10 +132,10 @@
     return (count ?? 0) + 1;
   }
 
-  async function renderBoard(run) {
-    const ol = $('board');
+  async function renderBoard(run, id = 'board', limit = 10) {
+    const ol = $(id);
     ol.replaceChildren(el('li', { className: 'gap', textContent: 'Carico la classifica…' }));
-    const { data, error } = await sb.from('leaderboard').select('user_id, username, best').order('best', { ascending: false }).limit(10);
+    const { data, error } = await sb.from('leaderboard').select('user_id, username, best').order('best', { ascending: false }).limit(limit);
     if (error) { ol.replaceChildren(el('li', { className: 'gap', textContent: 'Classifica non raggiungibile in questo momento.' })); return; }
     ol.replaceChildren();
     if (!data.length) ol.append(el('li', { className: 'gap', textContent: 'Nessun punteggio ancora: il primo posto è libero.' }));
@@ -161,7 +161,14 @@
     renderBoard(me ? null : run);
   }
 
-  window.Online = { finish, newGame };
+  // classifica da consultare quando vuoi, dal tasto in alto
+  function showBoard() {
+    if (!sb) return;
+    $('ovBoard').hidden = false;
+    renderBoard(null, 'boardFull', 20);
+  }
+
+  window.Online = { finish, newGame, showBoard, available: !!sb };
 
   if (!sb) { renderAccount(); return; }
   $('authForm').addEventListener('submit', onSubmit);

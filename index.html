@@ -17,6 +17,7 @@
   <div class="stat"><small>Arma</small><b id="hWeapon">Pede</b></div>
   <div class="stat"><small>Scudo</small><b id="hShield">0</b></div>
   <div class="stat"><small>Ora</small><b id="hClock">23:40</b></div>
+  <button class="icon-btn" id="boardBtn" type="button" hidden>Classifica</button>
   <button class="icon-btn" id="muteBtn" type="button">Audio: sì</button>
 </div>
 
@@ -99,6 +100,16 @@
         <div class="account" data-account></div>
       </div>
       <button class="big-btn" id="againBtn" type="button">Un'altra notte</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="ovBoard" hidden>
+    <div class="card">
+      <p class="eyebrow">I migliori della piazza</p>
+      <h2>Classifica di Paternò</h2>
+      <ol class="board" id="boardFull"></ol>
+      <p class="fine">Conta il miglior punteggio di ogni giocatore, verificato dal server.</p>
+      <button class="big-btn" id="boardClose" type="button">Torna al gioco</button>
     </div>
   </div>
 

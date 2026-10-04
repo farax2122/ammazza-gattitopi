@@ -839,28 +839,64 @@
   function drawWeapon(c, name, x, y, ang, sc) {
     c.save(); c.translate(x, y); c.rotate(ang); c.scale(sc, sc);
     if (name === 'Pede') {
-      // pianta del piede vista da sopra, dita in alto
-      ell(c, 3, 5, 17, 36, 'rgba(0,0,0,0.35)');
-      const g = c.createRadialGradient(-5, -8, 3, 0, 0, 38);
-      g.addColorStop(0, '#f6caa6'); g.addColorStop(1, '#c98a62');
-      c.fillStyle = g;
-      c.beginPath(); c.moveTo(-12, -22); c.quadraticCurveTo(-17, 8, -9, 30); c.quadraticCurveTo(0, 38, 9, 30);
-      c.quadraticCurveTo(15, 10, 14, -22); c.quadraticCurveTo(0, -30, -12, -22); c.fill();
-      // dita: alluce, due dita rotte (storte e fasciate), le ultime due
-      const toes = [[-9, -29, 6, 7, 0], [-1, -33, 4, 5.5, -0.5], [6, -32, 3.8, 5, 0.55], [11, -28, 3.4, 4.5, 0], [15, -23, 3, 4, 0]];
-      toes.forEach(([tx, ty, rx, ry, bend], i) => {
+      // pianta del piede vista da sopra, alluce a sinistra; le ultime due dita sono rotte e fasciate insieme
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 160);
+      ell(c, 4, 6, 18, 37, 'rgba(0,0,0,0.32)');
+      const sole = () => {
+        c.beginPath(); c.moveTo(-13, -21);
+        c.bezierCurveTo(-16, -4, -11, 8, -12, 20);
+        c.quadraticCurveTo(-12, 38, 0, 38); c.quadraticCurveTo(11, 38, 11, 22);
+        c.bezierCurveTo(12, 10, 17, -2, 16, -18);
+        c.quadraticCurveTo(2, -28, -13, -21); c.closePath();
+      };
+      const g = c.createRadialGradient(-5, -10, 2, 0, 4, 40);
+      g.addColorStop(0, '#fbd7b8'); g.addColorStop(0.6, '#eab48d'); g.addColorStop(1, '#c4835c');
+      c.fillStyle = g; sole(); c.fill();
+      c.strokeStyle = 'rgba(140,80,50,0.55)'; c.lineWidth = 1; sole(); c.stroke();
+      // arco plantare in ombra e tallone più chiaro
+      ell(c, -9, 6, 4, 11, 'rgba(160,90,60,0.22)');
+      ell(c, -1, 28, 7, 6, 'rgba(255,230,210,0.45)');
+      ell(c, -2, -12, 9, 5, 'rgba(255,225,200,0.35)');
+      const toe = (tx, ty, rx, ry, bend, broken) => {
         c.save(); c.translate(tx, ty); c.rotate(bend);
-        ell(c, 0, 0, rx, ry, '#efbb94');
-        if (i === 1 || i === 2) {
-          ell(c, 0, 1, rx + 1, ry * 0.9, '#7b4a8a');
-          c.fillStyle = '#f4efe2';
-          for (let k = -1; k <= 1; k++) c.fillRect(-rx - 1, k * 2.4 - 1, rx * 2 + 2, 1.6);
-          c.strokeStyle = '#c8312b'; c.lineWidth = 1; c.beginPath(); c.moveTo(-2, -ry - 2); c.lineTo(2, -ry - 5); c.stroke();
-        } else ell(c, 0, -ry * 0.45, rx * 0.6, ry * 0.35, 'rgba(255,240,230,0.7)');
+        const tg = c.createRadialGradient(-rx * 0.3, -ry * 0.4, 0.5, 0, 0, ry * 1.2);
+        if (broken) { tg.addColorStop(0, '#d98aa0'); tg.addColorStop(0.55, '#a1527e'); tg.addColorStop(1, '#5e2f62'); }
+        else { tg.addColorStop(0, '#fbd7b8'); tg.addColorStop(1, '#d99a72'); }
+        c.fillStyle = tg; c.beginPath(); c.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(120,60,40,0.5)'; c.lineWidth = 0.8; c.stroke();
+        // unghia
+        c.fillStyle = broken ? 'rgba(240,200,215,0.85)' : '#fbe6d8';
+        c.beginPath(); c.ellipse(0, -ry * 0.45, rx * 0.55, ry * 0.32, 0, 0, Math.PI * 2); c.fill();
+        c.strokeStyle = 'rgba(160,100,80,0.5)'; c.lineWidth = 0.6; c.stroke();
+        ell(c, -rx * 0.18, -ry * 0.55, rx * 0.18, ry * 0.1, 'rgba(255,255,255,0.8)');
         c.restore();
-      });
-      c.strokeStyle = 'rgba(120,70,40,0.35)'; c.lineWidth = 1.2;
-      c.beginPath(); c.moveTo(-6, 0); c.quadraticCurveTo(0, 8, 7, 0); c.stroke();
+      };
+      toe(-8, -29, 6, 7.5, -0.05, false);
+      toe(0, -33, 4.3, 5.8, 0, false);
+      toe(6.5, -31.5, 3.9, 5.2, 0.08, false);
+      // dita rotte: storte verso l'esterno, gonfie e livide
+      toe(12.2, -27, 3.9, 5, 0.55, true);
+      toe(16.4, -21.5, 3.5, 4.5, 0.85, true);
+      // cerotto che le tiene insieme
+      c.save(); c.translate(14.3, -24.2); c.rotate(0.7);
+      c.fillStyle = '#f4efe2'; c.fillRect(-7, -2.2, 14, 4.4);
+      c.strokeStyle = '#cfc6b4'; c.lineWidth = 0.6; c.strokeRect(-7, -2.2, 14, 4.4);
+      c.fillStyle = 'rgba(200,190,170,0.9)';
+      for (let i = -5; i <= 5; i += 2.5) c.fillRect(i, -2.2, 0.6, 4.4);
+      ell(c, 2, 0.3, 1.6, 1, 'rgba(200,40,40,0.55)');
+      c.restore();
+      // fitte di dolore che pulsano
+      c.strokeStyle = `rgba(232,60,40,${0.45 + 0.5 * pulse})`; c.lineWidth = 1.4; c.lineCap = 'round';
+      for (const a of [-1.1, -0.55, 0]) {
+        const r0 = 9 + pulse * 1.5;
+        c.beginPath();
+        c.moveTo(15 + Math.cos(a) * r0, -26 + Math.sin(a) * r0);
+        c.lineTo(15 + Math.cos(a) * (r0 + 5), -26 + Math.sin(a) * (r0 + 5));
+        c.stroke();
+      }
+      // pieghe sotto le dita
+      c.strokeStyle = 'rgba(140,80,50,0.35)'; c.lineWidth = 0.9;
+      c.beginPath(); c.moveTo(-11, -20); c.quadraticCurveTo(1, -24, 14, -18); c.stroke();
     } else {
       // asse di legno con venature e chiodi
       ell(c, 4, 6, 14, 52, 'rgba(0,0,0,0.3)');
@@ -1618,7 +1654,7 @@
   cv.addEventListener('pointerdown', ev => {
     ev.preventDefault(); pos(ev); audio();
     pointer.show = ev.pointerType === 'mouse' ? Infinity : 0.45; pointer.swing = 0;
-    if (game.state === 'play' && !game.paused) whack(pointer.x, pointer.y);
+    if (game.state === 'play' && !game.paused && !game.boardOpen) whack(pointer.x, pointer.y);
   });
   cv.addEventListener('pointermove', ev => { pos(ev); pointer.lx = pointer.x; pointer.ly = pointer.y; if (ev.pointerType === 'mouse') pointer.show = Infinity; });
   cv.addEventListener('pointerleave', ev => { if (ev.pointerType === 'mouse') pointer.show = 0; });
@@ -1666,6 +1702,13 @@
     return playVoice(r < 0.6 ? 'mmazzai' : r < 0.8 ? 'pidata' : 'gattotopo');
   }
 
+  // la classifica mette in pausa la partita finché resta aperta
+  if (window.Online && window.Online.available) {
+    $('boardBtn').hidden = false;
+    $('boardBtn').addEventListener('click', () => { game.boardOpen = true; window.Online.showBoard(); $('boardClose').focus(); });
+    $('boardClose').addEventListener('click', () => { $('ovBoard').hidden = true; game.boardOpen = false; });
+  }
+
   $('muteBtn').addEventListener('click', () => {
     muted = !muted; $('muteBtn').textContent = muted ? 'Audio: no' : 'Audio: sì';
   });
@@ -1699,7 +1742,7 @@
   let last = performance.now();
   function frame(now) {
     const dt = Math.min(0.05, (now - last) / 1000); last = now;
-    if (!game.paused) update(dt);
+    if (!game.paused && !game.boardOpen) update(dt);
     render(now); updateHud();
     requestAnimationFrame(frame);
   }
