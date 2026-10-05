@@ -1223,7 +1223,7 @@
   try { game.record = parseInt(localStorage.getItem('gattitopi-record') || '0', 10) || 0; } catch (e) {}
 
   const HIT_LINES = ['Mizzica!', 'Talìa chistu!', "Va' curcati!", 'Pigghiatu!', 'Chi schifiu!', "Unn'è ca vai?", 'Ammazzalu!', 'Bedda matri!'];
-  const EVENT_LABELS = { ondata: 'Ondata di gattitopi', blackout: 'Blackout!', festa: 'Festa di Santa Barbara' };
+  const EVENT_LABELS = { ondata: 'Ondata di gattitopi', blackout: 'Scurò!', festa: 'Festa di Santa Barbara' };
 
   const isPest = Sim.isPest, hittable = Sim.hittable;
   const mult = () => Sim.mult(S), bonus = () => Sim.bonus(S), progress = () => Sim.progress(S);
@@ -1676,7 +1676,7 @@
     $('endTitle').textContent = win ? 'Paternò è salva' : 'I gattitopi hanno vinto';
     $('endText').textContent = win
       ? `Hai tenuto la piazza fino al mattino. Bonus alba: +${dawn} punti per le ${S.lives} palline rimaste sul rosario.${isRecord ? ' Nuovo record.' : ''}`
-      : `I tombini sono loro, almeno per stanotte. Tieni la combo alta per arrivare all'asse di legno, e conserva gli scudi della Trinacria per il blackout.${isRecord ? ' Nuovo record, comunque.' : ''}`;
+      : `I tombini sono loro, almeno per stanotte. Tieni la combo alta per arrivare all'asse di legno, e conserva gli scudi della Trinacria per lo Scurò!${isRecord ? ' Nuovo record, comunque.' : ''}`;
     $('endScore').textContent = S.score.toLocaleString('it-IT');
     $('endRecord').textContent = game.record.toLocaleString('it-IT');
     $('endCombo').textContent = S.maxCombo;
