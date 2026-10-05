@@ -15,6 +15,7 @@
   ];
   const EVENT_DUR = { ondata: 10, blackout: 12, festa: 12 };
   const EVENT_KEYS = ['ondata', 'blackout', 'festa'];
+  const BALL_FLY = 1.6;               // secondi di volo della polpetta di cavallo
 
   function mulberry32(a) {
     return function () {
@@ -30,7 +31,7 @@
       rng: mulberry32(seed >>> 0), tick: 0, elapsed: 0,
       score: 0, combo: 0, maxCombo: 0, lives: MAX_LIVES, shield: 0,
       slow: 0, hitstop: 0, spawnT: 0.8, lastHour: 23, event: null, lastEvent: null,
-      weapon: 0, ents: [], nextId: 1, lastClickTick: -1000,
+      weapon: 0, ents: [], nextId: 1, lastClickTick: -1000, ball: null, ballT: 40,
       over: false, win: false, invalid: null
     };
   }
@@ -128,6 +129,13 @@
     if (s.over || s.tick - s.lastClickTick < MIN_GAP) return null;
     s.lastClickTick = s.tick;
     const ev = [];
+    // la polpetta di cavallo lanciata dall'arrostitore: presa al volo, rosario di nuovo pieno
+    if (s.ball && target === s.ball.id) {
+      if (s.tick - s.ball.born < MIN_REACT) { s.invalid = 'bersaglio non valido'; return { input: [s.tick, target, hole], events: ev }; }
+      s.ball = null; s.lives = MAX_LIVES;
+      ev.push({ k: 'ballCatch' });
+      return { input: [s.tick, target, hole], events: ev };
+    }
     let e = target >= 0 ? s.ents.find(x => x.id === target) : null;
     if (target >= 0 && (!e || !hittable(e))) { s.invalid = 'bersaglio non valido'; return { input: [s.tick, target, hole], events: ev }; }
     let recTarget = target, recHole = hole;
@@ -173,6 +181,17 @@
 
     const wi = weaponIndex(s);
     if (wi !== s.weapon) { ev.push({ k: 'weapon', name: WEAPONS[wi].name, up: wi > s.weapon }); s.weapon = wi; }
+
+    s.ballT -= dt;
+    if (s.ballT <= 0 && !s.ball) {
+      s.ballT = rnd(s, 35, 55);
+      s.ball = { id: s.nextId++, born: s.tick, t: 0 };
+      ev.push({ k: 'ballThrow' });
+    }
+    if (s.ball) {
+      s.ball.t += sdt;
+      if (s.ball.t >= BALL_FLY) { s.ball = null; ev.push({ k: 'ballMiss' }); }
+    }
 
     s.spawnT -= sdt;
     if (s.spawnT <= 0) {
@@ -239,7 +258,7 @@
   }
 
   root.GattitopiSim = {
-    TICK, DURATION, START_MIN, MAX_LIVES, WEAPONS,
+    TICK, DURATION, START_MIN, MAX_LIVES, WEAPONS, BALL_FLY, MIN_REACT,
     create, step, click, replay, hittable, isPest,
     weapon: s => WEAPONS[weaponIndex(s)], mult, bonus, progress
   };

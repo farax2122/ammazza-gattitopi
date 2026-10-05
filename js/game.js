@@ -839,6 +839,14 @@
     if (o.hit) drawStars(c, 0, -s * 1.35, s, o.t);
   }
 
+  // polpetta di cavallo arrostita, con le righe della griglia
+  function drawPolpetta(c, s) {
+    ell(c, 0, -s, s * 0.9, s * 0.8, '#6a2a1a');
+    ell(c, -s * 0.25, -s * 1.25, s * 0.35, s * 0.22, 'rgba(255,190,140,0.35)');
+    c.strokeStyle = '#2a0e08'; c.lineWidth = Math.max(1, s * 0.09); c.lineCap = 'round';
+    for (const k of [-0.4, 0, 0.4]) { c.beginPath(); c.moveTo(k * s - s * 0.25, -s * 1.5); c.lineTo(k * s + s * 0.25, -s * 0.5); c.stroke(); }
+  }
+
   function drawAra(c, s, o) {
     const h = s * 2.0, w = s * 0.85;
     c.save();
@@ -1268,6 +1276,15 @@
     if (e.state === 'jump' || (e.from !== undefined && e.jt < 1)) { const p = jumpPos(e); return { x: p.x, y: p.y - p.r * 1.2 }; }
     const h = holes[e.hole]; return { x: h.cx, y: anchorY(e, h) - spriteHeight(e, h) * 0.75 };
   }
+  // la polpetta vola dalla mano dell'arrostitore verso chi gioca, sempre più grande
+  function ballPos() {
+    const k = Math.min(1, S.ball.t / Sim.BALL_FLY), { x, y, h } = griller;
+    return {
+      x: lerp(x + h * 0.12, W * 0.5, k),
+      y: lerp(y - h * 0.65, H * 0.55, k) - Math.sin(Math.PI * k) * hz * 0.6,
+      r: lerp(h * 0.05, Math.min(W, H) * 0.09, k * k)
+    };
+  }
   function nearestHole(x, y) {
     let best = -1, bd = Infinity;
     holes.forEach((h, i) => { const d = Math.hypot(x - h.cx, (y - h.cy) * 1.3); if (d < h.r * 2.2 && d < bd) { bd = d; best = i; } });
@@ -1323,7 +1340,10 @@
     const under = S.ents.filter(e => hittable(e) && contains(e, x, y)).sort((a, b) => depth(b) - depth(a));
     // l'asse di legno passa sopra 'a picciridda: si prende prima qualunque altro bersaglio
     const target = under.find(e => !(w.splash && e.type === 'girl')) || under[0] || null;
-    const res = Sim.click(S, target ? target.id : -1, target ? -1 : nearestHole(x, y));
+    // la polpetta in volo ha la precedenza su tutto
+    const b = S.ball && S.tick - S.ball.born >= Sim.MIN_REACT ? ballPos() : null;
+    const ball = b && Math.hypot(x - b.x, y - b.y) < Math.max(b.r * 1.3, 28);
+    const res = ball ? Sim.click(S, S.ball.id, -1) : Sim.click(S, target ? target.id : -1, target ? -1 : nearestHole(x, y));
     if (!res) return;
     game.inputs.push(res.input);
     if (w.splash) {
@@ -1386,6 +1406,16 @@
         const h = holes[e.hole];
         if (v.shielded) { addText(h.cx, h.cy - h.r * 1.5, 'Parata!', '#f2c230', 18, 0.9); sfx.shield(); }
         else { addText(h.cx, h.cy - h.r * 1.5, 'Scappau!', '#e8642c', 20, 1); sfx.escape(); }
+      } else if (v.k === 'ballThrow') {
+        addText(griller.x, griller.y - griller.h * 1.1, 'Teh, pigghia!', '#f4efe2', 16, 1.1);
+      } else if (v.k === 'ballCatch') {
+        puff(cx, cy, 16, '#7a2e1e'); sfx.crunch();
+        addText(cx, cy - 20, 'Polpetta di cavaddu!', '#f2c230', 24, 1.3);
+        addText(cx, cy - 52, 'Rosario pieno', '#f4efe2', 18, 1.3);
+      } else if (v.k === 'ballMiss') {
+        game.shake = Math.max(game.shake, 0.3); sfx.escape();
+        puff(W / 2, H * 0.55, 14, '#5a2418');
+        addText(W / 2, H * 0.55 - 30, "Ti pigghiò 'n facci!", '#e8642c', 22, 1.2);
       } else if (v.k === 'jump') {
         sfx.boing();
       } else if (v.k === 'event') {
@@ -1583,6 +1613,15 @@
           ell(ctx, h.cx + ex, ay + ey, er * 0.8, er * 0.8, '#ff3b3b'); ctx.restore();
         }
       }
+    }
+
+    // polpetta in volo, sopra al buio dello Scurò: brilla di brace
+    if (game.state === 'play' && S.ball) {
+      const b = ballPos();
+      ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(S.ball.t * 9); ctx.translate(0, b.r);
+      ctx.shadowColor = 'rgba(255,140,50,0.8)'; ctx.shadowBlur = b.r * 0.6;
+      drawPolpetta(ctx, b.r);
+      ctx.restore();
     }
 
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
@@ -1810,6 +1849,7 @@
     drawIcon('icAra', drawAra, {}, 12, -4);
     drawIcon('icTri', drawTriPower, { t: 0 }, 14, -6);
     drawIcon('icFuo', drawFuochi, {}, 11, -4);
+    drawIcon('icPol', drawPolpetta, {}, 16, -6);
   }
 
   // ---------- Avvio ----------
