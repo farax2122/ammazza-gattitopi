@@ -599,9 +599,9 @@
     const f2 = fit('PATERNÒ', w * 0.8, Math.round(h * 0.36), DISPLAY);
     c.font = `${f2}px ${DISPLAY}`; c.fillStyle = '#1f4fa8';
     c.fillText('PATERNÒ', x + w / 2, y + h * 0.56);
-    const f3 = fit('Città di Santa Barbara e dei Gattitopi', w * 0.86, Math.round(h * 0.11), "'Rubik', system-ui, sans-serif");
+    const f3 = fit('Città di Santa Barbara e dei Gattotopi', w * 0.86, Math.round(h * 0.11), "'Rubik', system-ui, sans-serif");
     c.font = `italic ${f3}px 'Rubik', system-ui, sans-serif`; c.fillStyle = '#8a1a14';
-    c.fillText('Città di Santa Barbara e dei Gattitopi', x + w / 2, y + h * 0.8);
+    c.fillText('Città di Santa Barbara e dei Gattotopi', x + w / 2, y + h * 0.8);
     c.textAlign = 'start'; c.textBaseline = 'alphabetic';
   }
 
@@ -1231,7 +1231,7 @@
   try { game.record = parseInt(localStorage.getItem('gattitopi-record') || '0', 10) || 0; } catch (e) {}
 
   const HIT_LINES = ['Mizzica!', 'Talìa chistu!', "Va' curcati!", 'Pigghiatu!', 'Chi schifiu!', "Unn'è ca vai?", 'Ammazzalu!', 'Bedda matri!'];
-  const EVENT_LABELS = { ondata: 'Ondata di gattitopi', blackout: 'Scurò!', festa: 'Festa di Santa Barbara' };
+  const EVENT_LABELS = { ondata: 'Ondata di gattotopi', blackout: 'Scurò!', festa: 'Festa di Santa Barbara' };
 
   const isPest = Sim.isPest, hittable = Sim.hittable;
   const mult = () => Sim.mult(S), bonus = () => Sim.bonus(S), progress = () => Sim.progress(S);
@@ -1712,7 +1712,7 @@
     sfx.end(win);
     if (win) for (let i = 0; i < 6; i++) fwQueue.push({ at: i * 0.3, x: rnd(W * 0.15, W * 0.85), y: rnd(hz * 0.15, hz * 0.6) });
     $('endEyebrow').textContent = win ? "06:00 · È l'alba" : `${$('hClock').textContent} · Rosario sgranato`;
-    $('endTitle').textContent = win ? 'Paternò è salva' : 'I gattitopi hanno vinto';
+    $('endTitle').textContent = win ? 'Paternò è salva' : 'I gattotopi hanno vinto';
     $('endText').textContent = win
       ? `Hai tenuto la piazza fino al mattino. Bonus alba: +${dawn} punti per le ${S.lives} palline rimaste sul rosario.${isRecord ? ' Nuovo record.' : ''}`
       : `I tombini sono loro, almeno per stanotte. Tieni la combo alta per arrivare all'asse di legno, e conserva gli scudi della Trinacria per lo Scurò!${isRecord ? ' Nuovo record, comunque.' : ''}`;
