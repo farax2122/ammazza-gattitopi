@@ -62,4 +62,4 @@ sed -i -E 's#((css|js)/[a-z]+\.(css|js)|_shared/sim\.js)(\?v=[^"]*)?"#\1?v='$(gi
 
 ## Audio
 
-Le clip in `assets/audio/` vengono dal video originale: la voce è di una persona reale e i diritti sono dell'autore del servizio, a cui va chiesto il permesso per l'uso pubblico.
+Le clip in `assets/audio/` vengono dal video originale: la voce è di una persona reale e i diritti sono dell'autore del servizio. Mbare Catania ha autorizzato l'uso delle clip nel gioco (ottobre 2026).
