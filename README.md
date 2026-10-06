@@ -2,7 +2,7 @@
 
 **Gioca qui: https://farax2122.github.io/ammazza-gattitopi/**
 
-Gioco da browser ambientato a Paternò di notte: i gattitopi escono dai tombini e tu li prendi a pidate, col pede con due dita rotte, finché non arriva l'alba. Ispirato al servizio «Eroe ammazza gattitopi di Paternò» (Mpare Catania, https://www.youtube.com/watch?v=8BVv4spYvRM).
+Gioco da browser ambientato a Paternò di notte: i gattitopi escono dai tombini e tu li prendi a pidate, col pede con due dita rotte, finché non arriva l'alba. Ispirato al servizio «Eroe ammazza gattitopi di Paternò» (Mbare Catania, https://www.youtube.com/watch?v=8BVv4spYvRM).
 
 Il sito è statico su GitHub Pages: ogni push sul ramo `main` lo aggiorna in un paio di minuti. Account, classifica e verifica dei punteggi stanno su Supabase.
 
